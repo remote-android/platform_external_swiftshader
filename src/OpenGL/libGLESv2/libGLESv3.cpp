@@ -1146,7 +1146,7 @@ GL_APICALL void GL_APIENTRY glDrawBuffers(GLsizei n, const GLenum *bufs)
 			return error(GL_INVALID_OPERATION);
 		}
 
-		for(int i = 0; i < n; ++i)
+		for(unsigned int i = 0; i < (unsigned)n; i++)
 		{
 			switch(bufs[i])
 			{
