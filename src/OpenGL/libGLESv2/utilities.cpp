@@ -1007,6 +1007,8 @@ namespace es2
 	{
 		switch(internalformat)
 		{
+		case GL_RGB:
+		case GL_RGBA:
 		case GL_RGBA4:
 		case GL_RGB5_A1:
 		case GL_RGB565:
