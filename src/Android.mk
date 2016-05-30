@@ -33,11 +33,7 @@ COMMON_SRC_FILES += \
 	Main/Config.cpp \
 	Main/FrameBuffer.cpp \
 	Main/FrameBufferAndroid.cpp \
-	Main/Logo.cpp \
-	Main/Register.cpp \
-	Main/SwiftConfig.cpp \
-	Main/crc.cpp \
-	Main/serialvalid.cpp \
+	Main/SwiftConfig.cpp
 
 COMMON_SRC_FILES += \
 	Reactor/Nucleus.cpp \
@@ -97,7 +93,6 @@ COMMON_CFLAGS := \
 
 ifneq ($(filter gce gce% calypso, $(TARGET_DEVICE)),)
 COMMON_CFLAGS += \
-	-DDISPLAY_LOGO=0 \
 	-DTAG_JIT_CODE_MEMORY
 endif
 
