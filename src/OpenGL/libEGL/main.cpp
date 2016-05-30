@@ -43,55 +43,55 @@ static sw::Thread::LocalStorageKey currentTLS() {
 
 static void eglAttachThread()
 {
-    TRACE("()");
+	TRACE("()");
 
-    egl::Current *current = new egl::Current;
+	egl::Current *current = new egl::Current;
 
-    if(current)
-    {
-        sw::Thread::setLocalStorage(currentTLS(), current);
+	if(current)
+	{
+		sw::Thread::setLocalStorage(currentTLS(), current);
 
-        current->error = EGL_SUCCESS;
-        current->API = EGL_OPENGL_ES_API;
+		current->error = EGL_SUCCESS;
+		current->API = EGL_OPENGL_ES_API;
 		current->display = EGL_NO_DISPLAY;
 		current->context = nullptr;
 		current->drawSurface = nullptr;
-        current->readSurface = nullptr;
+		current->readSurface = nullptr;
 	}
 }
 
 static void eglDetachThread()
 {
-    TRACE("()");
+	TRACE("()");
 
 	egl::Current *current = (egl::Current*)sw::Thread::getLocalStorage(currentTLS());
 
 	if(current)
 	{
-        delete current;
+		delete current;
 	}
 }
 
 CONSTRUCTOR static void eglAttachProcess()
 {
-    TRACE("()");
+	TRACE("()");
 
 	#if !defined(ANGLE_DISABLE_TRACE) && defined(TRACE_OUTPUT_FILE)
-        FILE *debug = fopen(TRACE_OUTPUT_FILE, "rt");
+		FILE *debug = fopen(TRACE_OUTPUT_FILE, "rt");
 
-        if(debug)
-        {
-            fclose(debug);
-            debug = fopen(TRACE_OUTPUT_FILE, "wt");   // Erase
-            fclose(debug);
-        }
+		if(debug)
+		{
+			fclose(debug);
+			debug = fopen(TRACE_OUTPUT_FILE, "wt");   // Erase
+			fclose(debug);
+		}
 	#endif
 	eglAttachThread();
 }
 
 DESTRUCTOR static void eglDetachProcess()
 {
-    TRACE("()");
+	TRACE("()");
 
 	eglDetachThread();
 	sw::Thread::freeLocalStorageKey(currentTLS());
@@ -102,63 +102,63 @@ static INT_PTR CALLBACK DebuggerWaitDialogProc(HWND hwnd, UINT uMsg, WPARAM wPar
 {
 	RECT rect;
 
-    switch(uMsg)
-    {
-    case WM_INITDIALOG:
+	switch(uMsg)
+	{
+	case WM_INITDIALOG:
 		GetWindowRect(GetDesktopWindow(), &rect);
 		SetWindowPos(hwnd, HWND_TOP, rect.right / 2, rect.bottom / 2, 0, 0, SWP_NOSIZE);
 		SetTimer(hwnd, 1, 100, NULL);
 		return TRUE;
-    case WM_COMMAND:
-        if(LOWORD(wParam) == IDCANCEL)
+	case WM_COMMAND:
+		if(LOWORD(wParam) == IDCANCEL)
 		{
 			EndDialog(hwnd, 0);
 		}
-        break;
-    case WM_TIMER:
+		break;
+	case WM_TIMER:
 		if(IsDebuggerPresent())
 		{
 			EndDialog(hwnd, 0);
 		}
-    }
+	}
 
-    return FALSE;
+	return FALSE;
 }
 
 static void WaitForDebugger(HINSTANCE instance)
 {
-    if(!IsDebuggerPresent())
-    {
-        HRSRC dialog = FindResource(instance, MAKEINTRESOURCE(IDD_DIALOG1), RT_DIALOG);
+	if(!IsDebuggerPresent())
+	{
+		HRSRC dialog = FindResource(instance, MAKEINTRESOURCE(IDD_DIALOG1), RT_DIALOG);
 		DLGTEMPLATE *dialogTemplate = (DLGTEMPLATE*)LoadResource(instance, dialog);
 		DialogBoxIndirect(instance, dialogTemplate, NULL, DebuggerWaitDialogProc);
-    }
+	}
 }
 
 extern "C" BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
-    switch(reason)
-    {
-    case DLL_PROCESS_ATTACH:
+	switch(reason)
+	{
+	case DLL_PROCESS_ATTACH:
 		#ifndef NDEBUG
 			WaitForDebugger(instance);
 		#endif
-        eglAttachProcess();
-        break;
-    case DLL_THREAD_ATTACH:
-        eglAttachThread();
-        break;
-    case DLL_THREAD_DETACH:
-        eglDetachThread();
-        break;
-    case DLL_PROCESS_DETACH:
-        eglDetachProcess();
-        break;
-    default:
-        break;
-    }
+		eglAttachProcess();
+		break;
+	case DLL_THREAD_ATTACH:
+		eglAttachThread();
+		break;
+	case DLL_THREAD_DETACH:
+		eglDetachThread();
+		break;
+	case DLL_PROCESS_DETACH:
+		eglDetachProcess();
+		break;
+	default:
+		break;
+	}
 
-    return TRUE;
+	return TRUE;
 }
 #endif
 
@@ -178,49 +178,49 @@ static Current *eglGetCurrent(void)
 
 void setCurrentError(EGLint error)
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
-    current->error = error;
+	current->error = error;
 }
 
 EGLint getCurrentError()
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
-    return current->error;
+	return current->error;
 }
 
 void setCurrentAPI(EGLenum API)
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
-    current->API = API;
+	current->API = API;
 }
 
 EGLenum getCurrentAPI()
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
-    return current->API;
+	return current->API;
 }
 
 void setCurrentDisplay(EGLDisplay dpy)
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
-    current->display = dpy;
+	current->display = dpy;
 }
 
 EGLDisplay getCurrentDisplay()
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
-    return current->display;
+	return current->display;
 }
 
 void setCurrentContext(egl::Context *ctx)
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
 	if(ctx)
 	{
@@ -232,19 +232,19 @@ void setCurrentContext(egl::Context *ctx)
 		current->context->release();
 	}
 
-    current->context = ctx;
+	current->context = ctx;
 }
 
 egl::Context *getCurrentContext()
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
-    return current->context;
+	return current->context;
 }
 
 void setCurrentDrawSurface(egl::Surface *surface)
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
 	if(surface)
 	{
@@ -256,19 +256,19 @@ void setCurrentDrawSurface(egl::Surface *surface)
 		current->drawSurface->release();
 	}
 
-    current->drawSurface = surface;
+	current->drawSurface = surface;
 }
 
 egl::Surface *getCurrentDrawSurface()
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
-    return current->drawSurface;
+	return current->drawSurface;
 }
 
 void setCurrentReadSurface(egl::Surface *surface)
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
 	if(surface)
 	{
@@ -280,19 +280,19 @@ void setCurrentReadSurface(egl::Surface *surface)
 		current->readSurface->release();
 	}
 
-    current->readSurface = surface;
+	current->readSurface = surface;
 }
 
 egl::Surface *getCurrentReadSurface()
 {
-    Current *current = eglGetCurrent();
+	Current *current = eglGetCurrent();
 
-    return current->readSurface;
+	return current->readSurface;
 }
 
 void error(EGLint errorCode)
 {
-    egl::setCurrentError(errorCode);
+	egl::setCurrentError(errorCode);
 
 	if(errorCode != EGL_SUCCESS)
 	{
