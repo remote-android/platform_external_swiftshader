@@ -20,6 +20,7 @@
 #define INCLUDE_DISPLAY_H_
 
 #include "Config.h"
+#include "Common/MutexLock.hpp"
 #include "Sync.hpp"
 
 #include <set>
@@ -86,6 +87,7 @@ namespace egl
 		ContextSet mContextSet;
 
 		typedef std::set<FenceSync*> SyncSet;
+		sw::BackoffLock mSyncSetMutex;
 		SyncSet mSyncSet;
 	};
 }
