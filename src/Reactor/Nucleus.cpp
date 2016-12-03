@@ -70,7 +70,7 @@ namespace sw
 	LLVMContext *Nucleus::context = 0;
 	Module *Nucleus::module = 0;
 	llvm::Function *Nucleus::function = 0;
-	BackoffLock Nucleus::codegenMutex;
+	MutexLock Nucleus::codegenMutex;
 
 	class Builder : public IRBuilder<>
 	{

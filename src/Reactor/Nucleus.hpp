@@ -223,7 +223,7 @@ namespace sw
 		static llvm::Module *module;
 		static RoutineManager *routineManager;
 
-		static BackoffLock codegenMutex;
+		static MutexLock codegenMutex;
 	};
 
 	class Byte;
