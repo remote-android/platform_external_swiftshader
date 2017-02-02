@@ -39,17 +39,20 @@
 #include <vector>
 #include <map>
 
-class Guard {
- public:
-  explicit Guard(sw::BackoffLock* in) : mMutex(in) {
-    mMutex->lock();
-  }
+class Guard
+{
+public:
+	explicit Guard(sw::BackoffLock* in) : mMutex(in)
+	{
+		mMutex->lock();
+	}
 
-  ~Guard() {
-    mMutex->unlock();
-  }
- protected:
-  sw::BackoffLock* mMutex;
+	~Guard()
+	{
+		mMutex->unlock();
+	}
+protected:
+	sw::BackoffLock* mMutex;
 };
 
 namespace egl
