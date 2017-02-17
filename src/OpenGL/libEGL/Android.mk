@@ -35,7 +35,8 @@ COMMON_SHARED_LIBRARIES := \
 	libdl \
 	liblog \
 	libcutils \
-	libhardware
+	libhardware \
+	libandroid
 
 # Marshmallow does not have stlport, but comes with libc++ by default
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 23 && echo PreMarshmallow),PreMarshmallow)
