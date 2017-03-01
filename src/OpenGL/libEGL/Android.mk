@@ -29,7 +29,8 @@ COMMON_C_INCLUDES := \
 	$(LOCAL_PATH)/../../
 
 COMMON_STATIC_LIBRARIES := \
-	libLLVM_swiftshader
+	libLLVM_swiftshader \
+	libnativewindow
 
 COMMON_SHARED_LIBRARIES := \
 	libdl \
