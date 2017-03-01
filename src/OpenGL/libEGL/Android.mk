@@ -29,14 +29,14 @@ COMMON_C_INCLUDES := \
 	$(LOCAL_PATH)/../../
 
 COMMON_STATIC_LIBRARIES := \
-	libLLVM_swiftshader
+	libLLVM_swiftshader \
+	libnativewindow
 
 COMMON_SHARED_LIBRARIES := \
 	libdl \
 	liblog \
 	libcutils \
-	libhardware \
-	libandroid
+	libhardware
 
 # Marshmallow does not have stlport, but comes with libc++ by default
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 23 && echo PreMarshmallow),PreMarshmallow)
