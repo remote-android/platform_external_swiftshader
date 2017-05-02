@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "FrameBufferAndroid.hpp"
+#include <system/window.h>
 
 #include <cutils/log.h>
 
