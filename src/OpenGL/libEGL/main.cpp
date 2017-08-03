@@ -18,7 +18,7 @@
 
 #include "libEGL.hpp"
 #include "Context.hpp"
-#include "Surface.h"
+#include "EGLSurface.h"
 
 #include "resource.h"
 #include "Common/Thread.hpp"
@@ -41,11 +41,13 @@ static sw::Thread::LocalStorageKey currentTLS() {
 #define DESTRUCTOR
 #endif
 
-static void eglAttachThread()
+namespace egl
+{
+void attachThread()
 {
 	TRACE("()");
 
-	egl::Current *current = new egl::Current;
+	Current *current = new Current;
 
 	if(current)
 	{
@@ -60,19 +62,17 @@ static void eglAttachThread()
 	}
 }
 
-static void eglDetachThread()
+void detachThread()
 {
 	TRACE("()");
 
-	egl::Current *current = (egl::Current*)sw::Thread::getLocalStorage(currentTLS());
+	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_CONTEXT, EGL_NO_SURFACE, EGL_NO_SURFACE);
 
-	if(current)
-	{
-		delete current;
-	}
+	delete (Current*)sw::Thread::getLocalStorage(currentTLS());
+	sw::Thread::setLocalStorage(currentTLS(), nullptr);
 }
 
-CONSTRUCTOR static void eglAttachProcess()
+CONSTRUCTOR void attachProcess()
 {
 	TRACE("()");
 
@@ -86,18 +86,21 @@ CONSTRUCTOR static void eglAttachProcess()
 			fclose(debug);
 		}
 	#endif
-	eglAttachThread();
+
+	attachThread();
 }
 
-DESTRUCTOR static void eglDetachProcess()
+DESTRUCTOR void detachProcess()
 {
 	TRACE("()");
 
-	eglDetachThread();
+	detachThread();
 	sw::Thread::freeLocalStorageKey(currentTLS());
+}
 }
 
 #if defined(_WIN32)
+#ifdef DEBUGGER_WAIT_DIALOG
 static INT_PTR CALLBACK DebuggerWaitDialogProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	RECT rect;
@@ -134,25 +137,26 @@ static void WaitForDebugger(HINSTANCE instance)
 		DialogBoxIndirect(instance, dialogTemplate, NULL, DebuggerWaitDialogProc);
 	}
 }
+#endif
 
 extern "C" BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
 	switch(reason)
 	{
 	case DLL_PROCESS_ATTACH:
-		#ifndef NDEBUG
+		#ifdef DEBUGGER_WAIT_DIALOG
 			WaitForDebugger(instance);
 		#endif
-		eglAttachProcess();
+		egl::attachProcess();
 		break;
 	case DLL_THREAD_ATTACH:
-		eglAttachThread();
+		egl::attachThread();
 		break;
 	case DLL_THREAD_DETACH:
-		eglDetachThread();
+		egl::detachThread();
 		break;
 	case DLL_PROCESS_DETACH:
-		eglDetachProcess();
+		egl::detachProcess();
 		break;
 	default:
 		break;
@@ -164,13 +168,13 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved
 
 namespace egl
 {
-static Current *eglGetCurrent(void)
+static Current *getCurrent(void)
 {
 	Current *current = (Current*)sw::Thread::getLocalStorage(currentTLS());
 
 	if(!current)
 	{
-		eglAttachThread();
+		attachThread();
 	}
 
 	return (Current*)sw::Thread::getLocalStorage(currentTLS());
@@ -178,49 +182,49 @@ static Current *eglGetCurrent(void)
 
 void setCurrentError(EGLint error)
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	current->error = error;
 }
 
 EGLint getCurrentError()
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	return current->error;
 }
 
 void setCurrentAPI(EGLenum API)
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	current->API = API;
 }
 
 EGLenum getCurrentAPI()
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	return current->API;
 }
 
 void setCurrentDisplay(EGLDisplay dpy)
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	current->display = dpy;
 }
 
 EGLDisplay getCurrentDisplay()
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	return current->display;
 }
 
 void setCurrentContext(egl::Context *ctx)
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	if(ctx)
 	{
@@ -237,14 +241,14 @@ void setCurrentContext(egl::Context *ctx)
 
 egl::Context *getCurrentContext()
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	return current->context;
 }
 
 void setCurrentDrawSurface(egl::Surface *surface)
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	if(surface)
 	{
@@ -261,14 +265,14 @@ void setCurrentDrawSurface(egl::Surface *surface)
 
 egl::Surface *getCurrentDrawSurface()
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	return current->drawSurface;
 }
 
 void setCurrentReadSurface(egl::Surface *surface)
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	if(surface)
 	{
@@ -285,7 +289,7 @@ void setCurrentReadSurface(egl::Surface *surface)
 
 egl::Surface *getCurrentReadSurface()
 {
-	Current *current = eglGetCurrent();
+	Current *current = getCurrent();
 
 	return current->readSurface;
 }

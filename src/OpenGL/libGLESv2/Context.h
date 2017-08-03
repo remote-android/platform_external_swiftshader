@@ -77,7 +77,7 @@ enum
 	MAX_VERTEX_ATTRIBS = sw::MAX_VERTEX_INPUTS,
 	MAX_UNIFORM_VECTORS = 256,   // Device limit
 	MAX_VERTEX_UNIFORM_VECTORS = sw::VERTEX_UNIFORM_VECTORS - 3,   // Reserve space for gl_DepthRange
-	MAX_VARYING_VECTORS = 10,
+	MAX_VARYING_VECTORS = MIN(sw::MAX_FRAGMENT_INPUTS, sw::MAX_VERTEX_OUTPUTS),
 	MAX_TEXTURE_IMAGE_UNITS = sw::TEXTURE_IMAGE_UNITS,
 	MAX_VERTEX_TEXTURE_IMAGE_UNITS = sw::VERTEX_TEXTURE_IMAGE_UNITS,
 	MAX_COMBINED_TEXTURE_IMAGE_UNITS = MAX_TEXTURE_IMAGE_UNITS + MAX_VERTEX_TEXTURE_IMAGE_UNITS,
@@ -87,8 +87,8 @@ enum
 	MAX_ELEMENTS_VERTICES = 0x7FFFFFFF,
 	MAX_VERTEX_OUTPUT_VECTORS = 16,
 	MAX_FRAGMENT_INPUT_VECTORS = 15,
-	MIN_PROGRAM_TEXEL_OFFSET = -8,
-	MAX_PROGRAM_TEXEL_OFFSET = 7,
+	MIN_PROGRAM_TEXEL_OFFSET = sw::MIN_PROGRAM_TEXEL_OFFSET,
+	MAX_PROGRAM_TEXEL_OFFSET = sw::MAX_PROGRAM_TEXEL_OFFSET,
 	MAX_DRAW_BUFFERS = sw::RENDERTARGETS,
 	MAX_COLOR_ATTACHMENTS = MAX(MAX_DRAW_BUFFERS, 8),
 	MAX_FRAGMENT_UNIFORM_BLOCKS = sw::MAX_FRAGMENT_UNIFORM_BLOCKS,
@@ -103,6 +103,7 @@ enum
 	MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS = 4,
 	MAX_UNIFORM_BUFFER_BINDINGS = sw::MAX_UNIFORM_BUFFER_BINDINGS,
 	UNIFORM_BUFFER_OFFSET_ALIGNMENT = 1,
+	NUM_PROGRAM_BINARY_FORMATS = 0,
 };
 
 const GLenum compressedTextureFormats[] =
@@ -195,7 +196,7 @@ public:
 		mCurrentValue[1].f = 0.0f;
 		mCurrentValue[2].f = 0.0f;
 		mCurrentValue[3].f = 1.0f;
-		mCurrentValueType = ValueUnion::FloatType;
+		mCurrentValueType = GL_FLOAT;
 	}
 
 	int typeSize() const
@@ -217,6 +218,11 @@ public:
 		}
 	}
 
+	GLenum currentValueType() const
+	{
+		return mCurrentValueType;
+	}
+
 	GLsizei stride() const
 	{
 		return mStride ? mStride : typeSize();
@@ -231,9 +237,9 @@ public:
 	{
 		switch(mCurrentValueType)
 		{
-		case ValueUnion::FloatType:	return mCurrentValue[i].f;
-		case ValueUnion::IntType:	return static_cast<float>(mCurrentValue[i].i);
-		case ValueUnion::UIntType:	return static_cast<float>(mCurrentValue[i].ui);
+		case GL_FLOAT:        return mCurrentValue[i].f;
+		case GL_INT:          return static_cast<float>(mCurrentValue[i].i);
+		case GL_UNSIGNED_INT: return static_cast<float>(mCurrentValue[i].ui);
 		default: UNREACHABLE(mCurrentValueType); return mCurrentValue[i].f;
 		}
 	}
@@ -242,9 +248,9 @@ public:
 	{
 		switch(mCurrentValueType)
 		{
-		case ValueUnion::FloatType:	return static_cast<GLint>(mCurrentValue[i].f);
-		case ValueUnion::IntType:	return mCurrentValue[i].i;
-		case ValueUnion::UIntType:	return static_cast<GLint>(mCurrentValue[i].ui);
+		case GL_FLOAT:        return static_cast<GLint>(mCurrentValue[i].f);
+		case GL_INT:          return mCurrentValue[i].i;
+		case GL_UNSIGNED_INT: return static_cast<GLint>(mCurrentValue[i].ui);
 		default: UNREACHABLE(mCurrentValueType); return mCurrentValue[i].i;
 		}
 	}
@@ -253,9 +259,9 @@ public:
 	{
 		switch(mCurrentValueType)
 		{
-		case ValueUnion::FloatType:	return static_cast<GLuint>(mCurrentValue[i].f);
-		case ValueUnion::IntType:	return static_cast<GLuint>(mCurrentValue[i].i);
-		case ValueUnion::UIntType:	return mCurrentValue[i].ui;
+		case GL_FLOAT:        return static_cast<GLuint>(mCurrentValue[i].f);
+		case GL_INT:          return static_cast<GLuint>(mCurrentValue[i].i);
+		case GL_UNSIGNED_INT: return mCurrentValue[i].ui;
 		default: UNREACHABLE(mCurrentValueType); return mCurrentValue[i].ui;
 		}
 	}
@@ -266,7 +272,7 @@ public:
 		mCurrentValue[1].f = values[1];
 		mCurrentValue[2].f = values[2];
 		mCurrentValue[3].f = values[3];
-		mCurrentValueType = ValueUnion::FloatType;
+		mCurrentValueType = GL_FLOAT;
 	}
 
 	inline void setCurrentValue(const GLint *values)
@@ -275,7 +281,7 @@ public:
 		mCurrentValue[1].i = values[1];
 		mCurrentValue[2].i = values[2];
 		mCurrentValue[3].i = values[3];
-		mCurrentValueType = ValueUnion::IntType;
+		mCurrentValueType = GL_INT;
 	}
 
 	inline void setCurrentValue(const GLuint *values)
@@ -284,7 +290,7 @@ public:
 		mCurrentValue[1].ui = values[1];
 		mCurrentValue[2].ui = values[2];
 		mCurrentValue[3].ui = values[3];
-		mCurrentValueType = ValueUnion::UIntType;
+		mCurrentValueType = GL_UNSIGNED_INT;
 	}
 
 	// From glVertexAttribPointer
@@ -307,15 +313,13 @@ public:
 private:
 	union ValueUnion
 	{
-		enum Type { FloatType, IntType, UIntType };
-
 		float f;
 		GLint i;
 		GLuint ui;
 	};
 
 	ValueUnion mCurrentValue[4];   // From glVertexAttrib
-	ValueUnion::Type mCurrentValueType;
+	GLenum mCurrentValueType;
 };
 
 typedef VertexAttribute VertexAttributeArray[MAX_VERTEX_ATTRIBS];
@@ -425,7 +429,7 @@ struct State
 class Context : public egl::Context
 {
 public:
-	Context(const egl::Config *config, const Context *shareContext, EGLint clientVersion);
+	Context(egl::Display *display, const Context *shareContext, EGLint clientVersion);
 
 	virtual void makeCurrent(egl::Surface *surface);
 	virtual EGLint getClientVersion() const;
@@ -634,6 +638,7 @@ public:
 	Buffer *getPixelPackBuffer() const;
 	Buffer *getPixelUnpackBuffer() const;
 	Buffer *getGenericUniformBuffer() const;
+	const GLvoid* getPixels(const GLvoid* data) const;
 	bool getBuffer(GLenum target, es2::Buffer **buffer) const;
 	Program *getCurrentProgram() const;
 	Texture2D *getTexture2D() const;
@@ -683,15 +688,16 @@ public:
 
 	void blitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1,
 	                     GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1,
-	                     GLbitfield mask);
+	                     GLbitfield mask, bool filter, bool allowPartialDepthStencilBlit);
 
 	virtual void bindTexImage(egl::Surface *surface);
 	virtual EGLenum validateSharedImage(EGLenum target, GLuint name, GLuint textureLevel);
 	virtual egl::Image *createSharedImage(EGLenum target, GLuint name, GLuint textureLevel);
+	egl::Image *getSharedImage(GLeglImageOES image);
 
 	Device *getDevice();
 
-	const GLubyte* getExtensions(GLuint index, GLuint* numExt = nullptr) const;
+	const GLubyte *getExtensions(GLuint index, GLuint *numExt = nullptr) const;
 
 private:
 	virtual ~Context();
@@ -719,7 +725,6 @@ private:
 	Query *createQuery(GLuint handle, GLenum type);
 
 	const EGLint clientVersion;
-	const egl::Config *const mConfig;
 
 	State mState;
 

@@ -15,7 +15,7 @@
 #ifndef	sw_FrameBuffer_hpp
 #define	sw_FrameBuffer_hpp
 
-#include "Reactor/Nucleus.hpp"
+#include "Reactor/Reactor.hpp"
 #include "Renderer/Surface.hpp"
 #include "Common/Thread.hpp"
 
@@ -36,6 +36,8 @@ namespace sw
 
 	class FrameBuffer
 	{
+		virtual void typeinfo();   // Dummy key method (https://gcc.gnu.org/onlinedocs/gcc/Vague-Linkage.html)
+
 	public:
 		FrameBuffer(int width, int height, bool fullscreen, bool topLeftOrigin);
 
@@ -75,21 +77,26 @@ namespace sw
 
 		void *target;   // Render target buffer
 
-		void (*blitFunction)(void *dst, void *src);
+		struct Cursor
+		{
+			void *image;
+			int x;
+			int y;
+			int width;
+			int height;
+			int hotspotX;
+			int hotspotY;
+			int positionX;
+			int positionY;
+		};
+
+		static Cursor cursor;
+
+		void (*blitFunction)(void *dst, void *src, Cursor *cursor);
 		Routine *blitRoutine;
 		BlitState blitState;
 
 		static void blend(const BlitState &state, const Pointer<Byte> &d, const Pointer<Byte> &s, const Pointer<Byte> &c);
-
-		static void *cursor;
-		static int cursorWidth;
-		static int cursorHeight;
-		static int cursorHotspotX;
-		static int cursorHotspotY;
-		static int cursorPositionX;
-		static int cursorPositionY;
-		static int cursorX;
-		static int cursorY;
 
 		Thread *blitThread;
 		Event syncEvent;

@@ -19,8 +19,9 @@
 #include "Display.h"
 
 #include "main.h"
-#include "libEGL/Surface.h"
+#include "libEGL/EGLSurface.h"
 #include "libEGL/Context.hpp"
+#include "common/Image.hpp"
 #include "common/debug.h"
 #include "Common/MutexLock.hpp"
 
@@ -39,24 +40,9 @@
 #include <vector>
 #include <map>
 
-class Guard
-{
-public:
-	explicit Guard(sw::BackoffLock* in) : mMutex(in)
-	{
-		mMutex->lock();
-	}
-
-	~Guard()
-	{
-		mMutex->unlock();
-	}
-protected:
-	sw::BackoffLock* mMutex;
-};
-
 namespace egl
 {
+void Display::typeinfo() {}
 
 Display *Display::get(EGLDisplay dpy)
 {
@@ -98,12 +84,27 @@ Display::~Display()
 	#endif
 }
 
+#if !defined(__i386__) && defined(_M_IX86)
+	#define __i386__ 1
+#endif
+
+#if !defined(__x86_64__) && (defined(_M_AMD64) || defined (_M_X64))
+	#define __x86_64__ 1
+#endif
+
 static void cpuid(int registers[4], int info)
 {
-	#if defined(_WIN32)
-		__cpuid(registers, info);
+	#if defined(__i386__) || defined(__x86_64__)
+		#if defined(_WIN32)
+			__cpuid(registers, info);
+		#else
+			__asm volatile("cpuid": "=a" (registers[0]), "=b" (registers[1]), "=c" (registers[2]), "=d" (registers[3]): "a" (info));
+		#endif
 	#else
-		__asm volatile("cpuid": "=a" (registers[0]), "=b" (registers[1]), "=c" (registers[2]), "=d" (registers[3]): "a" (info));
+		registers[0] = 0;
+		registers[1] = 0;
+		registers[2] = 0;
+		registers[3] = 0;
 	#endif
 }
 
@@ -121,10 +122,12 @@ bool Display::initialize()
 		return true;
 	}
 
-	if(!detectSSE())
-	{
-		return false;
-	}
+	#if defined(__i386__) || defined(__x86_64__)
+		if(!detectSSE())
+		{
+			return false;
+		}
+	#endif
 
 	mMinSwapInterval = 0;
 	mMaxSwapInterval = 4;
@@ -211,6 +214,11 @@ void Display::terminate()
 	while(!mContextSet.empty())
 	{
 		destroyContext(*mContextSet.begin());
+	}
+
+	while(!mSharedImageNameSpace.empty())
+	{
+		destroySharedImage(reinterpret_cast<EGLImageKHR>((intptr_t)mSharedImageNameSpace.firstName()));
 	}
 }
 
@@ -427,24 +435,21 @@ EGLSurface Display::createPBufferSurface(EGLConfig config, const EGLint *attribL
 EGLContext Display::createContext(EGLConfig configHandle, const egl::Context *shareContext, EGLint clientVersion)
 {
 	const egl::Config *config = mConfigSet.get(configHandle);
-	egl::Context *context = 0;
+	egl::Context *context = nullptr;
 
 	if(clientVersion == 1 && config->mRenderableType & EGL_OPENGL_ES_BIT)
 	{
 		if(libGLES_CM)
 		{
-			context = libGLES_CM->es1CreateContext(config, shareContext);
+			context = libGLES_CM->es1CreateContext(this, shareContext);
 		}
 	}
-	else if((clientVersion == 2 && config->mRenderableType & EGL_OPENGL_ES2_BIT)
-#ifndef __ANDROID__ // Do not allow GLES 3.0 on Android
-		 || (clientVersion == 3 && config->mRenderableType & EGL_OPENGL_ES3_BIT)
-#endif
-			)
+	else if((clientVersion == 2 && config->mRenderableType & EGL_OPENGL_ES2_BIT) ||
+	        (clientVersion == 3 && config->mRenderableType & EGL_OPENGL_ES3_BIT))
 	{
 		if(libGLESv2)
 		{
-			context = libGLESv2->es2CreateContext(config, shareContext, clientVersion);
+			context = libGLESv2->es2CreateContext(this, shareContext, clientVersion);
 		}
 	}
 	else
@@ -466,7 +471,7 @@ EGLContext Display::createContext(EGLConfig configHandle, const egl::Context *sh
 EGLSyncKHR Display::createSync(Context *context)
 {
 	FenceSync *fenceSync = new egl::FenceSync(context);
-	Guard lk(&mSyncSetMutex);
+	LockGuard lock(mSyncSetMutex);
 	mSyncSet.insert(fenceSync);
 	return fenceSync;
 }
@@ -503,7 +508,7 @@ void Display::destroyContext(egl::Context *context)
 void Display::destroySync(FenceSync *sync)
 {
 	{
-		Guard lk(&mSyncSetMutex);
+		LockGuard lock(mSyncSetMutex);
 		mSyncSet.erase(sync);
 	}
 	delete sync;
@@ -553,13 +558,13 @@ bool Display::isValidWindow(EGLNativeWindowType window)
 
 			return status == True;
 		}
+		return false;
 	#elif defined(__APPLE__)
 		return sw::OSX::IsValidWindow(window);
 	#else
 		#error "Display::isValidWindow unimplemented for this platform"
+		return false;
 	#endif
-
-	return false;
 }
 
 bool Display::hasExistingWindowSurface(EGLNativeWindowType window)
@@ -580,7 +585,7 @@ bool Display::hasExistingWindowSurface(EGLNativeWindowType window)
 
 bool Display::isValidSync(FenceSync *sync)
 {
-	Guard lk(&mSyncSetMutex);
+	LockGuard lock(mSyncSetMutex);
 	return mSyncSet.find(sync) != mSyncSet.end();
 }
 
@@ -597,6 +602,33 @@ EGLint Display::getMaxSwapInterval() const
 void *Display::getNativeDisplay() const
 {
 	return nativeDisplay;
+}
+
+EGLImageKHR Display::createSharedImage(Image *image)
+{
+	return reinterpret_cast<EGLImageKHR>((intptr_t)mSharedImageNameSpace.allocate(image));
+}
+
+bool Display::destroySharedImage(EGLImageKHR image)
+{
+	GLuint name = (GLuint)reinterpret_cast<intptr_t>(image);
+	Image *eglImage = mSharedImageNameSpace.find(name);
+
+	if(!eglImage)
+	{
+		return false;
+	}
+
+	eglImage->destroyShared();
+	mSharedImageNameSpace.remove(name);
+
+	return true;
+}
+
+Image *Display::getSharedImage(EGLImageKHR image)
+{
+	GLuint name = (GLuint)reinterpret_cast<intptr_t>(image);
+	return mSharedImageNameSpace.find(name);
 }
 
 sw::Format Display::getDisplayFormat() const

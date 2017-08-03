@@ -26,6 +26,7 @@
 #include "Shader/PixelShader.hpp"
 #include "Shader/VertexShader.hpp"
 
+#include <algorithm>
 #include <string>
 #include <stdlib.h>
 
@@ -42,8 +43,6 @@ namespace es2
 
 	Uniform::BlockInfo::BlockInfo(const glsl::Uniform& uniform, int blockIndex)
 	{
-		static unsigned int registerSizeStd140 = 4; // std140 packing requires dword alignment
-
 		if(blockIndex >= 0)
 		{
 			index = blockIndex;
@@ -270,7 +269,7 @@ namespace es2
 		}
 	}
 
-	GLuint Program::getAttributeLocation(const char *name)
+	GLint Program::getAttributeLocation(const char *name)
 	{
 		if(name)
 		{
@@ -296,7 +295,7 @@ namespace es2
 	// Returns the index of the texture image unit (0-19) corresponding to a sampler index (0-15 for the pixel shader and 0-3 for the vertex shader)
 	GLint Program::getSamplerMapping(sw::SamplerType type, unsigned int samplerIndex)
 	{
-		GLuint logicalTextureUnit = -1;
+		GLint logicalTextureUnit = -1;
 
 		switch(type)
 		{
@@ -348,7 +347,7 @@ namespace es2
 
 	GLint Program::getUniformLocation(const std::string &name) const
 	{
-		size_t subscript = GL_INVALID_INDEX;
+		unsigned int subscript = GL_INVALID_INDEX;
 		std::string baseName = es2::ParseUniformName(name, &subscript);
 
 		size_t numUniforms = uniformIndex.size();
@@ -370,7 +369,7 @@ namespace es2
 
 	GLuint Program::getUniformIndex(const std::string &name) const
 	{
-		size_t subscript = GL_INVALID_INDEX;
+		unsigned int subscript = GL_INVALID_INDEX;
 		std::string baseName = es2::ParseUniformName(name, &subscript);
 
 		// The app is not allowed to specify array indices other than 0 for arrays of basic types
@@ -431,7 +430,7 @@ namespace es2
 
 	GLuint Program::getUniformBlockIndex(const std::string &name) const
 	{
-		size_t subscript = GL_INVALID_INDEX;
+		unsigned int subscript = GL_INVALID_INDEX;
 		std::string baseName = es2::ParseUniformName(name, &subscript);
 
 		size_t numUniformBlocks = getActiveUniformBlockCount();
@@ -497,7 +496,7 @@ namespace es2
 		if(targetUniform->type == floatType[index])
 		{
 			memcpy(targetUniform->data + uniformIndex[location].element * sizeof(GLfloat)* numElements,
-				   v, numElements * sizeof(GLfloat)* count);
+				   v, numElements * sizeof(GLfloat) * count);
 		}
 		else if(targetUniform->type == boolType[index])
 		{
@@ -1067,7 +1066,7 @@ namespace es2
 	// Applies all the uniforms set for this program object to the device
 	void Program::applyUniforms()
 	{
-		GLint numUniforms = uniformIndex.size();
+		GLint numUniforms = static_cast<GLint>(uniformIndex.size());
 		for(GLint location = 0; location < numUniforms; location++)
 		{
 			if(uniformIndex[location].element != 0)
@@ -1180,9 +1179,13 @@ namespace es2
 		for(unsigned int bufferBindingIndex = 0; bufferBindingIndex < MAX_UNIFORM_BUFFER_BINDINGS; bufferBindingIndex++)
 		{
 			int index = vertexUniformBuffers[bufferBindingIndex];
-			device->VertexProcessor::setUniformBuffer(bufferBindingIndex, (index != -1) ? uniformBuffers[index].get()->getResource() : nullptr, (index != -1) ? uniformBuffers[index].getOffset() : 0);
+			Buffer* vsBuffer = (index != -1) ? (Buffer*)uniformBuffers[index].get() : nullptr;
+			device->VertexProcessor::setUniformBuffer(bufferBindingIndex,
+				vsBuffer ? vsBuffer->getResource() : nullptr, (index != -1) ? uniformBuffers[index].getOffset() : 0);
 			index = fragmentUniformBuffers[bufferBindingIndex];
-			device->PixelProcessor::setUniformBuffer(bufferBindingIndex, (index != -1) ? uniformBuffers[index].get()->getResource() : nullptr, (index != -1) ? uniformBuffers[index].getOffset() : 0);
+			Buffer* psBuffer = (index != -1) ? (Buffer*)uniformBuffers[index].get() : nullptr;
+			device->PixelProcessor::setUniformBuffer(bufferBindingIndex,
+				psBuffer ? psBuffer->getResource() : nullptr, (index != -1) ? uniformBuffers[index].getOffset() : 0);
 		}
 	}
 
@@ -1204,7 +1207,7 @@ namespace es2
 			return;
 		}
 
-		unsigned int maxVaryings = transformFeedbackLinkedVaryings.size();
+		unsigned int maxVaryings = static_cast<unsigned int>(transformFeedbackLinkedVaryings.size());
 		switch(transformFeedbackBufferMode)
 		{
 		case GL_SEPARATE_ATTRIBS:
@@ -1236,10 +1239,10 @@ namespace es2
 			// written by a vertex shader are written, interleaved, into the buffer object
 			// bound to the first transform feedback binding point (index = 0).
 			sw::Resource* resource = transformFeedbackBuffers[0].get()->getResource();
-			int componentStride = totalLinkedVaryingsComponents;
+			int componentStride = static_cast<int>(totalLinkedVaryingsComponents);
 			int baseOffset = transformFeedbackBuffers[0].getOffset() + (transformFeedback->vertexOffset() * componentStride * sizeof(float));
 			maxVaryings = sw::min(maxVaryings, (unsigned int)sw::MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS);
-			size_t totalComponents = 0;
+			int totalComponents = 0;
 			for(unsigned int index = 0; index < maxVaryings; ++index)
 			{
 				int size = transformFeedbackLinkedVaryings[index].size;
@@ -1305,6 +1308,8 @@ namespace es2
 
 		for(glsl::VaryingList::iterator output = vsVaryings.begin(); output != vsVaryings.end(); ++output)
 		{
+			bool matched = false;
+
 			for(glsl::VaryingList::iterator input = psVaryings.begin(); input != psVaryings.end(); ++input)
 			{
 				if(output->name == input->name)
@@ -1332,24 +1337,41 @@ namespace es2
 
 						for(int i = 0; i < registers; i++)
 						{
-							if(components >= 1) vertexBinary->output[out + i][0] = sw::Shader::Semantic(sw::Shader::USAGE_COLOR, in + i);
-							if(components >= 2) vertexBinary->output[out + i][1] = sw::Shader::Semantic(sw::Shader::USAGE_COLOR, in + i);
-							if(components >= 3) vertexBinary->output[out + i][2] = sw::Shader::Semantic(sw::Shader::USAGE_COLOR, in + i);
-							if(components >= 4) vertexBinary->output[out + i][3] = sw::Shader::Semantic(sw::Shader::USAGE_COLOR, in + i);
+							vertexBinary->setOutput(out + i, components, sw::Shader::Semantic(sw::Shader::USAGE_COLOR, in + i, pixelBinary->getInput(in + i, 0).flat));
 						}
 					}
 					else   // Vertex varying is declared but not written to
 					{
 						for(int i = 0; i < registers; i++)
 						{
-							if(components >= 1) pixelBinary->semantic[in + i][0] = sw::Shader::Semantic();
-							if(components >= 2) pixelBinary->semantic[in + i][1] = sw::Shader::Semantic();
-							if(components >= 3) pixelBinary->semantic[in + i][2] = sw::Shader::Semantic();
-							if(components >= 4) pixelBinary->semantic[in + i][3] = sw::Shader::Semantic();
+							pixelBinary->setInput(in + i, components, sw::Shader::Semantic());
 						}
 					}
 
+					matched = true;
 					break;
+				}
+			}
+
+			// For openGL ES 3.0, we need to still add the vertex shader outputs for unmatched varyings, for transform feedback.
+			if(!matched && (egl::getClientVersion() >= 3))
+			{
+				int out = output->reg;
+				int components = VariableRegisterSize(output->type);
+				int registers = VariableRegisterCount(output->type) * output->size();
+
+				if(out >= 0)
+				{
+					if(out + registers > MAX_VARYING_VECTORS)
+					{
+						appendToInfoLog("Too many varyings");
+						return false;
+					}
+
+					for(int i = 0; i < registers; i++)
+					{
+						vertexBinary->setOutput(out + i, components, sw::Shader::Semantic(sw::Shader::USAGE_COLOR));
+					}
 				}
 			}
 		}
@@ -1366,7 +1388,7 @@ namespace es2
 
 		for(const std::string &indexedTfVaryingName : transformFeedbackVaryings)
 		{
-			size_t subscript = GL_INVALID_INDEX;
+			unsigned int subscript = GL_INVALID_INDEX;
 			std::string tfVaryingName = es2::ParseUniformName(indexedTfVaryingName, &subscript);
 			bool hasSubscript = (subscript != GL_INVALID_INDEX);
 
@@ -1394,11 +1416,11 @@ namespace es2
 						return false;
 					}
 
-					size_t size = hasSubscript ? 1 : varying.size();
+					int size = hasSubscript ? 1 : varying.size();
 
-					size_t rowCount = VariableRowCount(varying.type);
-					size_t colCount = VariableColumnCount(varying.type);
-					size_t componentCount = rowCount * colCount * size;
+					int rowCount = VariableRowCount(varying.type);
+					int colCount = VariableColumnCount(varying.type);
+					int componentCount = rowCount * colCount * size;
 					if(transformFeedbackBufferMode == GL_SEPARATE_ATTRIBS &&
 					   componentCount > sw::MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS)
 					{
@@ -1752,7 +1774,7 @@ namespace es2
 		if(location == -1)   // Not previously defined
 		{
 			uniforms.push_back(uniform);
-			size_t index = uniforms.size() - 1;
+			unsigned int index = static_cast<unsigned int>(uniforms.size() - 1);
 
 			for(int i = 0; i < uniform->size(); i++)
 			{
@@ -2593,7 +2615,7 @@ namespace es2
 
 			if(length)
 			{
-				*length = strlen(name);
+				*length = static_cast<GLsizei>(strlen(name));
 			}
 		}
 
@@ -2648,7 +2670,7 @@ namespace es2
 
 			if(length)
 			{
-				*length = strlen(name);
+				*length = static_cast<GLsizei>(strlen(name));
 			}
 		}
 
@@ -2725,7 +2747,7 @@ namespace es2
 
 			if(length)
 			{
-				*length = strlen(name);
+				*length = static_cast<GLsizei>(strlen(name));
 			}
 		}
 	}
@@ -2737,7 +2759,7 @@ namespace es2
 
 	GLint Program::getActiveUniformBlockMaxLength() const
 	{
-		size_t maxLength = 0;
+		GLint maxLength = 0;
 
 		if(isLinked())
 		{
@@ -2747,10 +2769,10 @@ namespace es2
 				const UniformBlock &uniformBlock = *uniformBlocks[uniformBlockIndex];
 				if(!uniformBlock.name.empty())
 				{
-					size_t length = uniformBlock.name.length() + 1;
+					GLint length = static_cast<GLint>(uniformBlock.name.length() + 1);
 
 					// Counting in "[0]".
-					const int arrayLength = (uniformBlock.isArrayElement() ? 3 : 0);
+					const GLint arrayLength = (uniformBlock.isArrayElement() ? 3 : 0);
 
 					maxLength = std::max(length + arrayLength, maxLength);
 				}

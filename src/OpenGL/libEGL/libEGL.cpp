@@ -16,7 +16,7 @@
 
 #include "main.h"
 #include "Display.h"
-#include "Surface.h"
+#include "EGLSurface.h"
 #include "Texture.hpp"
 #include "Context.hpp"
 #include "common/Image.hpp"
@@ -485,7 +485,7 @@ EGLBoolean ReleaseThread(void)
 {
 	TRACE("()");
 
-	eglMakeCurrent(EGL_NO_DISPLAY, EGL_NO_CONTEXT, EGL_NO_SURFACE, EGL_NO_SURFACE);
+	detachThread();
 
 	return success(EGL_TRUE);
 }
@@ -982,11 +982,14 @@ EGLImageKHR CreateImageKHR(EGLDisplay dpy, EGLContext ctx, EGLenum target, EGLCl
 				return error(EGL_BAD_ATTRIBUTE, EGL_NO_IMAGE_KHR);
 			}
 
-			return success(new AndroidNativeImage(nativeBuffer));
+			Image *image = new AndroidNativeImage(nativeBuffer);
+			EGLImageKHR eglImage = display->createSharedImage(image);
+
+			return success(eglImage);
 		}
 	#endif
 
-	GLuint name = reinterpret_cast<intptr_t>(buffer);
+	GLuint name = static_cast<GLuint>(reinterpret_cast<uintptr_t>(buffer));
 
 	if(name == 0)
 	{
@@ -1000,7 +1003,7 @@ EGLImageKHR CreateImageKHR(EGLDisplay dpy, EGLContext ctx, EGLenum target, EGLCl
 		return error(validationResult, EGL_NO_IMAGE_KHR);
 	}
 
-	egl::Image *image = context->createSharedImage(target, name, textureLevel);
+	Image *image = context->createSharedImage(target, name, textureLevel);
 
 	if(!image)
 	{
@@ -1012,7 +1015,9 @@ EGLImageKHR CreateImageKHR(EGLDisplay dpy, EGLContext ctx, EGLenum target, EGLCl
 		return error(EGL_BAD_PARAMETER, EGL_NO_IMAGE_KHR);
 	}
 
-	return success((EGLImageKHR)image);
+	EGLImageKHR eglImage = display->createSharedImage(image);
+
+	return success(eglImage);
 }
 
 EGLBoolean DestroyImageKHR(EGLDisplay dpy, EGLImageKHR image)
@@ -1026,13 +1031,10 @@ EGLBoolean DestroyImageKHR(EGLDisplay dpy, EGLImageKHR image)
 		return error(EGL_BAD_DISPLAY, EGL_FALSE);
 	}
 
-	if(!image)
+	if(!display->destroySharedImage(image))
 	{
 		return error(EGL_BAD_PARAMETER, EGL_FALSE);
 	}
-
-	egl::Image *glImage = static_cast<egl::Image*>(image);
-	glImage->destroyShared();
 
 	return success(EGL_TRUE);
 }
@@ -1041,17 +1043,15 @@ EGLDisplay GetPlatformDisplayEXT(EGLenum platform, void *native_display, const E
 {
 	TRACE("(EGLenum platform = 0x%X, void *native_display = %p, const EGLint *attrib_list = %p)", platform, native_display, attrib_list);
 
-	switch(platform)
-	{
 	#if defined(__linux__) && !defined(__ANDROID__)
-	case EGL_PLATFORM_X11_EXT: break;
-	case EGL_PLATFORM_GBM_KHR: break;
-	#endif
-	default:
-		return error(EGL_BAD_PARAMETER, EGL_NO_DISPLAY);
-	}
+		switch(platform)
+		{
+		case EGL_PLATFORM_X11_EXT: break;
+		case EGL_PLATFORM_GBM_KHR: break;
+		default:
+			return error(EGL_BAD_PARAMETER, EGL_NO_DISPLAY);
+		}
 
-	#if defined(__linux__) && !defined(__ANDROID__)
 		if(platform == EGL_PLATFORM_X11_EXT)
 		{
 			if(!libX11)
@@ -1073,9 +1073,11 @@ EGLDisplay GetPlatformDisplayEXT(EGLenum platform, void *native_display, const E
 
 			return success(HEADLESS_DISPLAY);
 		}
-	#endif
 
-	return success(PRIMARY_DISPLAY);   // We only support the default display
+		return success(PRIMARY_DISPLAY);   // We only support the default display
+	#else
+		return error(EGL_BAD_PARAMETER, EGL_NO_DISPLAY);
+	#endif
 }
 
 EGLSurface CreatePlatformWindowSurfaceEXT(EGLDisplay dpy, EGLConfig config, void *native_window, const EGLint *attrib_list)

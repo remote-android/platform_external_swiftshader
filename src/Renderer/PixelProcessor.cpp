@@ -480,6 +480,42 @@ namespace sw
 		else ASSERT(false);
 	}
 
+	void PixelProcessor::setBaseLevel(unsigned int sampler, int baseLevel)
+	{
+		if(sampler < TEXTURE_IMAGE_UNITS)
+		{
+			context->sampler[sampler].setBaseLevel(baseLevel);
+		}
+		else ASSERT(false);
+	}
+
+	void PixelProcessor::setMaxLevel(unsigned int sampler, int maxLevel)
+	{
+		if(sampler < TEXTURE_IMAGE_UNITS)
+		{
+			context->sampler[sampler].setMaxLevel(maxLevel);
+		}
+		else ASSERT(false);
+	}
+
+	void PixelProcessor::setMinLod(unsigned int sampler, float minLod)
+	{
+		if(sampler < TEXTURE_IMAGE_UNITS)
+		{
+			context->sampler[sampler].setMinLod(minLod);
+		}
+		else ASSERT(false);
+	}
+
+	void PixelProcessor::setMaxLod(unsigned int sampler, float maxLod)
+	{
+		if(sampler < TEXTURE_IMAGE_UNITS)
+		{
+			context->sampler[sampler].setMaxLod(maxLod);
+		}
+		else ASSERT(false);
+	}
+
 	void PixelProcessor::setWriteSRGB(bool sRGB)
 	{
 		context->setWriteSRGB(sRGB);
@@ -936,9 +972,7 @@ namespace sw
 		{
 			state.depthTestActive = true;
 			state.depthCompareMode = context->depthCompareMode;
-			state.quadLayoutDepthBuffer = context->depthBuffer->getInternalFormat() != FORMAT_D32F_LOCKABLE &&
-			                              context->depthBuffer->getInternalFormat() != FORMAT_D32FS8_TEXTURE &&
-			                              context->depthBuffer->getInternalFormat() != FORMAT_D32FS8_SHADOW;
+			state.quadLayoutDepthBuffer = Surface::hasQuadLayout(context->depthBuffer->getInternalFormat());
 		}
 
 		state.occlusionEnabled = context->occlusionEnabled;
@@ -1075,14 +1109,16 @@ namespace sw
 			{
 				for(int component = 0; component < 4; component++)
 				{
-					if(context->pixelShader->semantic[interpolant][component].active())
+					const Shader::Semantic &semantic = context->pixelShader->getInput(interpolant, component);
+
+					if(semantic.active())
 					{
 						bool flat = point;
 
-						switch(context->pixelShader->semantic[interpolant][component].usage)
+						switch(semantic.usage)
 						{
-						case Shader::USAGE_TEXCOORD: flat = point && !sprite; break;
-						case Shader::USAGE_COLOR:    flat = flatShading;      break;
+						case Shader::USAGE_TEXCOORD: flat = point && !sprite;             break;
+						case Shader::USAGE_COLOR:    flat = semantic.flat || flatShading; break;
 						}
 
 						state.interpolant[interpolant].component |= 1 << component;
@@ -1102,7 +1138,7 @@ namespace sw
 			{
 				for(int component = 0; component < 4; component++)
 				{
-					state.interpolant[interpolant].centroid = context->pixelShader->semantic[interpolant][0].centroid;
+					state.interpolant[interpolant].centroid = context->pixelShader->getInput(interpolant, 0).centroid;
 				}
 			}
 		}

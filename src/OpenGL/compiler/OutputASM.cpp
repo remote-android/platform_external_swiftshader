@@ -24,6 +24,8 @@
 #include <GLES2/gl2ext.h>
 #include <GLES3/gl3.h>
 
+#include <stdlib.h>
+
 namespace glsl
 {
 	// Integer to TString conversion
@@ -496,7 +498,6 @@ namespace glsl
 		TIntermTyped *right = node->getRight();
 		const TType &leftType = left->getType();
 		const TType &rightType = right->getType();
-		const TType &resultType = node->getType();
 
 		if(isSamplerRegister(result))
 		{
@@ -1224,7 +1225,7 @@ namespace glsl
 						if(argument->getQualifier() == EvqOut ||
 						   argument->getQualifier() == EvqInOut)
 						{
-							copy(out, argument);
+							assignLvalue(out, argument);
 						}
 					}
 				}
@@ -1237,25 +1238,12 @@ namespace glsl
 
 					if(textureFunction.proj)
 					{
-						TIntermConstantUnion* constant = arg[1]->getAsConstantUnion();
-						if(constant)
-						{
-							float projFactor = 1.0f / constant->getFConst(t->getNominalSize() - 1);
-							Constant projCoord(constant->getFConst(0) * projFactor,
-							                   constant->getFConst(1) * projFactor,
-							                   constant->getFConst(2) * projFactor,
-							                   0.0f);
-							emit(sw::Shader::OPCODE_MOV, &coord, &projCoord);
-						}
-						else
-						{
-							Instruction *rcp = emit(sw::Shader::OPCODE_RCPX, &coord, arg[1]);
-							rcp->src[0].swizzle = 0x55 * (t->getNominalSize() - 1);
-							rcp->dst.mask = 0x7;
+						Instruction *rcp = emit(sw::Shader::OPCODE_RCPX, &coord, arg[1]);
+						rcp->src[0].swizzle = 0x55 * (t->getNominalSize() - 1);
+						rcp->dst.mask = 0x7;
 
-							Instruction *mul = emit(sw::Shader::OPCODE_MUL, &coord, arg[1], &coord);
-							mul->dst.mask = 0x7;
-						}
+						Instruction *mul = emit(sw::Shader::OPCODE_MUL, &coord, arg[1], &coord);
+						mul->dst.mask = 0x7;
 					}
 					else
 					{
@@ -1270,8 +1258,8 @@ namespace glsl
 
 							if(argumentCount == 2 || (textureFunction.offset && argumentCount == 3))
 							{
-								Instruction *tex = emit(textureFunction.offset ? sw::Shader::OPCODE_TEXOFFSET : sw::Shader::OPCODE_TEX,
-								                        result, &coord, arg[0], offset);
+								emit(textureFunction.offset ? sw::Shader::OPCODE_TEXOFFSET : sw::Shader::OPCODE_TEX,
+								     result, &coord, arg[0], offset);
 							}
 							else if(argumentCount == 3 || (textureFunction.offset && argumentCount == 4))   // bias
 							{
@@ -1298,10 +1286,13 @@ namespace glsl
 						{
 							if(argumentCount == 3 || (textureFunction.offset && argumentCount == 4))
 							{
+								Instruction *lod = emit(sw::Shader::OPCODE_MOV, &coord, arg[2]);
+								lod->dst.mask = 0x8;
+
 								TIntermNode *offset = textureFunction.offset ? arg[3] : nullptr;
 
 								emit(textureFunction.offset ? sw::Shader::OPCODE_TEXELFETCHOFFSET : sw::Shader::OPCODE_TEXELFETCH,
-								     result, arg[1], arg[0], arg[2], offset);
+								     result, &coord, arg[0], offset);
 							}
 							else UNREACHABLE(argumentCount);
 						}
@@ -1348,17 +1339,20 @@ namespace glsl
 			if(visit == PostVisit)
 			{
 				int component = 0;
-
+				int arrayMaxIndex = result->isArray() ? result->getArraySize() - 1 : 0;
+				int arrayComponents = result->getType().getElementSize();
 				for(size_t i = 0; i < argumentCount; i++)
 				{
 					TIntermTyped *argi = arg[i]->getAsTyped();
 					int size = argi->getNominalSize();
+					int arrayIndex = std::min(component / arrayComponents, arrayMaxIndex);
+					int swizzle = component - (arrayIndex * arrayComponents);
 
 					if(!argi->isMatrix())
 					{
-						Instruction *mov = emitCast(result, argi);
-						mov->dst.mask = (0xF << component) & 0xF;
-						mov->src[0].swizzle = readSwizzle(argi, size) << (component * 2);
+						Instruction *mov = emitCast(result, arrayIndex, argi, 0);
+						mov->dst.mask = (0xF << swizzle) & 0xF;
+						mov->src[0].swizzle = readSwizzle(argi, size) << (swizzle * 2);
 
 						component += size;
 					}
@@ -1368,9 +1362,9 @@ namespace glsl
 
 						while(component < resultType.getNominalSize())
 						{
-							Instruction *mov = emitCast(result, 0, argi, column);
-							mov->dst.mask = (0xF << component) & 0xF;
-							mov->src[0].swizzle = readSwizzle(argi, size) << (component * 2);
+							Instruction *mov = emitCast(result, arrayIndex, argi, column);
+							mov->dst.mask = (0xF << swizzle) & 0xF;
+							mov->src[0].swizzle = readSwizzle(argi, size) << (swizzle * 2);
 
 							column++;
 							component += size;
@@ -1398,7 +1392,7 @@ namespace glsl
 				{
 					for(int i = 0; i < outCols; i++)
 					{
-						Instruction *init = emit(sw::Shader::OPCODE_MOV, result, i, &zero);
+						emit(sw::Shader::OPCODE_MOV, result, i, &zero);
 						Instruction *mov = emitCast(result, i, arg0, 0);
 						mov->dst.mask = 1 << i;
 						ASSERT(mov->src[0].swizzle == 0x00);
@@ -1406,22 +1400,28 @@ namespace glsl
 				}
 				else if(arg0->isMatrix())
 				{
-					const int inCols = arg0->getNominalSize();
-					const int inRows = arg0->getSecondarySize();
+					int arraySize = result->isArray() ? result->getArraySize() : 1;
 
-					for(int i = 0; i < outCols; i++)
+					for(int n = 0; n < arraySize; n++)
 					{
-						if(i >= inCols || outRows > inRows)
-						{
-							// Initialize to identity matrix
-							Constant col((i == 0 ? 1.0f : 0.0f), (i == 1 ? 1.0f : 0.0f), (i == 2 ? 1.0f : 0.0f), (i == 3 ? 1.0f : 0.0f));
-							Instruction *mov = emitCast(result, i, &col, 0);
-						}
+						TIntermTyped *argi = arg[n]->getAsTyped();
+						const int inCols = argi->getNominalSize();
+						const int inRows = argi->getSecondarySize();
 
-						if(i < inCols)
+						for(int i = 0; i < outCols; i++)
 						{
-							Instruction *mov = emitCast(result, i, arg0, i);
-							mov->dst.mask = 0xF >> (4 - inRows);
+							if(i >= inCols || outRows > inRows)
+							{
+								// Initialize to identity matrix
+								Constant col((i == 0 ? 1.0f : 0.0f), (i == 1 ? 1.0f : 0.0f), (i == 2 ? 1.0f : 0.0f), (i == 3 ? 1.0f : 0.0f));
+								emitCast(result, i + n * outCols, &col, 0);
+							}
+
+							if(i < inCols)
+							{
+								Instruction *mov = emitCast(result, i + n * outCols, argi, i);
+								mov->dst.mask = 0xF >> (4 - inRows);
+							}
 						}
 					}
 				}
@@ -1510,8 +1510,8 @@ namespace glsl
 			if(visit == PostVisit)
 			{
 				TIntermTyped *arg0 = arg[0]->getAsTyped();
-				TIntermTyped *arg1 = arg[1]->getAsTyped();
-				ASSERT((arg0->getNominalSize() == arg1->getNominalSize()) && (arg0->getSecondarySize() == arg1->getSecondarySize()));
+				ASSERT((arg0->getNominalSize() == arg[1]->getAsTyped()->getNominalSize()) &&
+				       (arg0->getSecondarySize() == arg[1]->getAsTyped()->getSecondarySize()));
 
 				int size = arg0->getNominalSize();
 				for(int i = 0; i < size; i++)
@@ -2171,8 +2171,7 @@ namespace glsl
 
 				if(memberType.getBasicType() == EbtBool)
 				{
-					int arraySize = (memberType.isArray() ? memberType.getArraySize() : 1);
-					ASSERT(argumentInfo.clampedIndex < arraySize);
+					ASSERT(argumentInfo.clampedIndex < (memberType.isArray() ? memberType.getArraySize() : 1)); // index < arraySize
 
 					// Convert the packed bool, which is currently an int, to a true bool
 					Instruction *instruction = new Instruction(sw::Shader::OPCODE_I2B);
@@ -2191,9 +2190,8 @@ namespace glsl
 				{
 					int numCols = memberType.getNominalSize();
 					int numRows = memberType.getSecondarySize();
-					int arraySize = (memberType.isArray() ? memberType.getArraySize() : 1);
 
-					ASSERT(argumentInfo.clampedIndex < (numCols * arraySize));
+					ASSERT(argumentInfo.clampedIndex < (numCols * (memberType.isArray() ? memberType.getArraySize() : 1))); // index < cols * arraySize
 
 					unsigned int dstIndex = registerIndex(&unpackedUniform);
 					unsigned int srcSwizzle = (argumentInfo.clampedIndex % numCols) * 0x55;
@@ -2459,7 +2457,7 @@ namespace glsl
 
 					dst.type = registerType(left);
 					dst.index += fieldOffset;
-					dst.mask = writeMask(right);
+					dst.mask = writeMask(result);
 
 					return 0xE4;
 				}
@@ -2568,6 +2566,12 @@ namespace glsl
 		return sw::Shader::PARAMETER_VOID;
 	}
 
+	bool OutputASM::hasFlatQualifier(TIntermTyped *operand)
+	{
+		const TQualifier qualifier = operand->getQualifier();
+		return qualifier == EvqFlat || qualifier == EvqFlatOut || qualifier == EvqFlatIn;
+	}
+
 	unsigned int OutputASM::registerIndex(TIntermTyped *operand)
 	{
 		if(isSamplerRegister(operand))
@@ -2602,9 +2606,9 @@ namespace glsl
 		case EvqConstReadOnly:       return temporaryRegister(operand);
 		case EvqPosition:            return varyingRegister(operand);
 		case EvqPointSize:           return varyingRegister(operand);
-		case EvqInstanceID:          vertexShader->instanceIdDeclared = true; return 0;
-		case EvqFragCoord:           pixelShader->vPosDeclared = true;  return 0;
-		case EvqFrontFacing:         pixelShader->vFaceDeclared = true; return 1;
+		case EvqInstanceID:          vertexShader->declareInstanceId(); return 0;
+		case EvqFragCoord:           pixelShader->declareVPos();  return 0;
+		case EvqFrontFacing:         pixelShader->declareVFace(); return 1;
 		case EvqPointCoord:          return varyingRegister(operand);
 		case EvqFragColor:           return 0;
 		case EvqFragData:            return fragmentOutputRegister(operand);
@@ -2769,19 +2773,15 @@ namespace glsl
 				if(varying->getQualifier() == EvqPointCoord)
 				{
 					ASSERT(varying->isRegister());
-					if(componentCount >= 1) pixelShader->semantic[var][0] = sw::Shader::Semantic(sw::Shader::USAGE_TEXCOORD, var);
-					if(componentCount >= 2) pixelShader->semantic[var][1] = sw::Shader::Semantic(sw::Shader::USAGE_TEXCOORD, var);
-					if(componentCount >= 3) pixelShader->semantic[var][2] = sw::Shader::Semantic(sw::Shader::USAGE_TEXCOORD, var);
-					if(componentCount >= 4) pixelShader->semantic[var][3] = sw::Shader::Semantic(sw::Shader::USAGE_TEXCOORD, var);
+					pixelShader->setInput(var, componentCount, sw::Shader::Semantic(sw::Shader::USAGE_TEXCOORD, var));
 				}
 				else
 				{
 					for(int i = 0; i < varying->totalRegisterCount(); i++)
 					{
-						if(componentCount >= 1) pixelShader->semantic[var + i][0] = sw::Shader::Semantic(sw::Shader::USAGE_COLOR, var + i);
-						if(componentCount >= 2) pixelShader->semantic[var + i][1] = sw::Shader::Semantic(sw::Shader::USAGE_COLOR, var + i);
-						if(componentCount >= 3) pixelShader->semantic[var + i][2] = sw::Shader::Semantic(sw::Shader::USAGE_COLOR, var + i);
-						if(componentCount >= 4) pixelShader->semantic[var + i][3] = sw::Shader::Semantic(sw::Shader::USAGE_COLOR, var + i);
+						bool flat = hasFlatQualifier(varying);
+
+						pixelShader->setInput(var + i, componentCount, sw::Shader::Semantic(sw::Shader::USAGE_COLOR, var + i, flat));
 					}
 				}
 			}
@@ -2796,20 +2796,12 @@ namespace glsl
 				if(varying->getQualifier() == EvqPosition)
 				{
 					ASSERT(varying->isRegister());
-					vertexShader->output[var][0] = sw::Shader::Semantic(sw::Shader::USAGE_POSITION, 0);
-					vertexShader->output[var][1] = sw::Shader::Semantic(sw::Shader::USAGE_POSITION, 0);
-					vertexShader->output[var][2] = sw::Shader::Semantic(sw::Shader::USAGE_POSITION, 0);
-					vertexShader->output[var][3] = sw::Shader::Semantic(sw::Shader::USAGE_POSITION, 0);
-					vertexShader->positionRegister = var;
+					vertexShader->setPositionRegister(var);
 				}
 				else if(varying->getQualifier() == EvqPointSize)
 				{
 					ASSERT(varying->isRegister());
-					vertexShader->output[var][0] = sw::Shader::Semantic(sw::Shader::USAGE_PSIZE, 0);
-					vertexShader->output[var][1] = sw::Shader::Semantic(sw::Shader::USAGE_PSIZE, 0);
-					vertexShader->output[var][2] = sw::Shader::Semantic(sw::Shader::USAGE_PSIZE, 0);
-					vertexShader->output[var][3] = sw::Shader::Semantic(sw::Shader::USAGE_PSIZE, 0);
-					vertexShader->pointSizeRegister = var;
+					vertexShader->setPointSizeRegister(var);
 				}
 				else
 				{
@@ -2907,12 +2899,25 @@ namespace glsl
 				index = allocate(attributes, attribute);
 				const TType &type = attribute->getType();
 				int registerCount = attribute->totalRegisterCount();
+				sw::VertexShader::AttribType attribType = sw::VertexShader::ATTRIBTYPE_FLOAT;
+				switch(type.getBasicType())
+				{
+				case EbtInt:
+					attribType = sw::VertexShader::ATTRIBTYPE_INT;
+					break;
+				case EbtUInt:
+					attribType = sw::VertexShader::ATTRIBTYPE_UINT;
+					break;
+				case EbtFloat:
+				default:
+					break;
+				}
 
 				if(vertexShader && (index + registerCount) <= sw::MAX_VERTEX_INPUTS)
 				{
 					for(int i = 0; i < registerCount; i++)
 					{
-						vertexShader->input[index + i] = sw::Shader::Semantic(sw::Shader::USAGE_TEXCOORD, index + i);
+						vertexShader->setInput(index + i, sw::Shader::Semantic(sw::Shader::USAGE_TEXCOORD, index + i, false), attribType);
 					}
 				}
 
@@ -3596,11 +3601,16 @@ namespace glsl
 
 			if(comparator == EOpLessThan)
 			{
-				int iterations = (limit - initial) / increment;
-
-				if(iterations <= 0)
+				if(!(initial < limit))   // Never loops
 				{
-					iterations = 0;
+					return 0;
+				}
+
+				int iterations = (limit - initial + abs(increment) - 1) / increment;   // Ceiling division
+
+				if(iterations < 0)
+				{
+					return ~0u;
 				}
 
 				return iterations;

@@ -23,7 +23,7 @@
 #include "Framebuffer.h"
 #include "Device.hpp"
 #include "libEGL/Display.h"
-#include "libEGL/Surface.h"
+#include "libEGL/EGLSurface.h"
 #include "common/debug.h"
 
 #include <algorithm>
@@ -614,7 +614,7 @@ void Texture2D::copySubImage(GLenum target, GLint level, GLint xoffset, GLint yo
 	renderTarget->release();
 }
 
-void Texture2D::setImage(egl::Image *sharedImage)
+void Texture2D::setSharedImage(egl::Image *sharedImage)
 {
 	sharedImage->addRef();
 
