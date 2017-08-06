@@ -190,14 +190,26 @@ namespace sw
 		delete swiftConfig;
 	}
 
+	// This object has to be mem aligned
+	void* Renderer::operator new(size_t size)
+	{
+		ASSERT(size == sizeof(Renderer)); // This operator can't be called from a derived class
+		return sw::allocate(sizeof(Renderer), 16);
+	}
+
+	void Renderer::operator delete(void * mem)
+	{
+		sw::deallocate(mem);
+	}
+
 	void Renderer::clear(void *pixel, Format format, Surface *dest, const SliceRect &dRect, unsigned int rgbaMask)
 	{
 		blitter.clear(pixel, format, dest, dRect, rgbaMask);
 	}
 
-	void Renderer::blit(Surface *source, const SliceRect &sRect, Surface *dest, const SliceRect &dRect, bool filter)
+	void Renderer::blit(Surface *source, const SliceRect &sRect, Surface *dest, const SliceRect &dRect, bool filter, bool isStencil)
 	{
-		blitter.blit(source, sRect, dest, dRect, filter);
+		blitter.blit(source, sRect, dest, dRect, filter, isStencil);
 	}
 
 	void Renderer::blit3D(Surface *source, Surface *dest)
@@ -234,10 +246,6 @@ namespace sw
 
 			sync->lock(sw::PRIVATE);
 
-			Routine *vertexRoutine;
-			Routine *setupRoutine;
-			Routine *pixelRoutine;
-
 			if(update || oldMultiSampleMask != context->multiSampleMask)
 			{
 				vertexState = VertexProcessor::update(drawType);
@@ -268,7 +276,9 @@ namespace sw
 					setupPrimitives = &Renderer::setupVertexTriangle;
 					batch = 1;
 					break;
-				default: ASSERT(false);
+				default:
+					ASSERT(false);
+					return;
 				}
 			}
 			else if(context->isDrawLine())
@@ -447,7 +457,7 @@ namespace sw
 					draw->vsDirtyConstB = 0;
 				}
 
-				if(context->vertexShader->instanceIdDeclared)
+				if(context->vertexShader->isInstanceIdDeclared())
 				{
 					data->instanceID = context->instanceID;
 				}
@@ -624,7 +634,7 @@ namespace sw
 
 				if(draw->stencilBuffer)
 				{
-					data->stencilBuffer = (unsigned char*)context->stencilBuffer->lockStencil(q * ms, MANAGED);
+					data->stencilBuffer = (unsigned char*)context->stencilBuffer->lockStencil(0, 0, q * ms, MANAGED);
 					data->stencilPitchB = context->stencilBuffer->getStencilPitchB();
 					data->stencilSliceB = context->stencilBuffer->getStencilSliceB();
 				}
@@ -647,7 +657,16 @@ namespace sw
 			nextDraw++;
 			schedulerMutex.unlock();
 
-			if(threadCount > 1)
+			#ifndef NDEBUG
+			if(threadCount == 1)   // Use main thread for draw execution
+			{
+				threadsAwake = 1;
+				task[0].type = Task::RESUME;
+
+				taskLoop(0);
+			}
+			else
+			#endif
 			{
 				if(!threadsAwake)
 				{
@@ -658,13 +677,6 @@ namespace sw
 
 					resume[0]->signal();
 				}
-			}
-			else   // Use main thread for draw execution
-			{
-				threadsAwake = 1;
-				task[0].type = Task::RESUME;
-
-				taskLoop(0);
 			}
 		}
 	}
@@ -1523,7 +1535,6 @@ namespace sw
 
 		DrawCall &draw = *drawList[primitiveProgress[unit].drawCall % DRAW_COUNT];
 		SetupProcessor::State &state = draw.setupState;
-		SetupProcessor::RoutinePointer setupRoutine = draw.setupPointer;
 
 		const Vertex &v0 = triangle[0].v0;
 		const Vertex &v1 = triangle[0].v1;
@@ -2344,6 +2355,54 @@ namespace sw
 		else
 		{
 			VertexProcessor::setSwizzleA(sampler, swizzleA);
+		}
+	}
+
+	void Renderer::setBaseLevel(SamplerType type, int sampler, int baseLevel)
+	{
+		if(type == SAMPLER_PIXEL)
+		{
+			PixelProcessor::setBaseLevel(sampler, baseLevel);
+		}
+		else
+		{
+			VertexProcessor::setBaseLevel(sampler, baseLevel);
+		}
+	}
+
+	void Renderer::setMaxLevel(SamplerType type, int sampler, int maxLevel)
+	{
+		if(type == SAMPLER_PIXEL)
+		{
+			PixelProcessor::setMaxLevel(sampler, maxLevel);
+		}
+		else
+		{
+			VertexProcessor::setMaxLevel(sampler, maxLevel);
+		}
+	}
+
+	void Renderer::setMinLod(SamplerType type, int sampler, float minLod)
+	{
+		if(type == SAMPLER_PIXEL)
+		{
+			PixelProcessor::setMinLod(sampler, minLod);
+		}
+		else
+		{
+			VertexProcessor::setMinLod(sampler, minLod);
+		}
+	}
+
+	void Renderer::setMaxLod(SamplerType type, int sampler, float maxLod)
+	{
+		if(type == SAMPLER_PIXEL)
+		{
+			PixelProcessor::setMaxLod(sampler, maxLod);
+		}
+		else
+		{
+			VertexProcessor::setMaxLod(sampler, maxLod);
 		}
 	}
 

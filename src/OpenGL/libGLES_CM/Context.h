@@ -294,7 +294,7 @@ struct State
 class Context : public egl::Context
 {
 public:
-	Context(const egl::Config *config, const Context *shareContext);
+	Context(egl::Display *display, const Context *shareContext);
 
 	virtual void makeCurrent(egl::Surface *surface);
 	virtual int getClientVersion() const;
@@ -509,6 +509,7 @@ public:
 	virtual void bindTexImage(egl::Surface *surface);
 	virtual EGLenum validateSharedImage(EGLenum target, GLuint name, GLuint textureLevel);
 	virtual egl::Image *createSharedImage(EGLenum target, GLuint name, GLuint textureLevel);
+	egl::Image *getSharedImage(GLeglImageOES image);
 
 	Device *getDevice();
 

@@ -250,6 +250,8 @@ namespace sw
 			bool dirty;
 		};
 
+		virtual void typeinfo();   // Dummy key method (https://gcc.gnu.org/onlinedocs/gcc/Vague-Linkage.html)
+
 	public:
 		Surface(int width, int height, int depth, Format format, void *pixels, int pitch, int slice);
 		Surface(Resource *texture, int width, int height, int depth, Format format, bool lockable, bool renderTarget, int pitchP = 0);
@@ -283,8 +285,9 @@ namespace sw
 		inline int getInternalSliceB() const;
 		inline int getInternalSliceP() const;
 
-		void *lockStencil(int front, Accessor client);
+		void *lockStencil(int x, int y, int front, Accessor client);
 		void unlockStencil();
+		inline Format getStencilFormat() const;
 		inline int getStencilPitchB() const;
 		inline int getStencilSliceB() const;
 
@@ -326,6 +329,7 @@ namespace sw
 
 		static bool isStencil(Format format);
 		static bool isDepth(Format format);
+		static bool hasQuadLayout(Format format);
 		static bool isPalette(Format format);
 
 		static bool isFloatFormat(Format format);
@@ -333,7 +337,10 @@ namespace sw
 		static bool isSRGBreadable(Format format);
 		static bool isSRGBwritable(Format format);
 		static bool isCompressed(Format format);
+		static bool isSignedNonNormalizedInteger(Format format);
+		static bool isUnsignedNonNormalizedInteger(Format format);
 		static bool isNonNormalizedInteger(Format format);
+		static bool isNormalizedInteger(Format format);
 		static int componentCount(Format format);
 
 		static void setTexturePalette(unsigned int *palette);
@@ -510,7 +517,7 @@ namespace sw
 
 	int Surface::getPitchP(bool internal) const
 	{
-		return internal ? getInternalPitchP() : getExternalPitchB();
+		return internal ? getInternalPitchP() : getExternalPitchP();
 	}
 
 	int Surface::getSliceB(bool internal) const
@@ -520,7 +527,7 @@ namespace sw
 
 	int Surface::getSliceP(bool internal) const
 	{
-		return internal ? getInternalSliceP() : getExternalSliceB();
+		return internal ? getInternalSliceP() : getExternalSliceP();
 	}
 
 	Format Surface::getExternalFormat() const
@@ -571,6 +578,11 @@ namespace sw
 	int Surface::getInternalSliceP() const
 	{
 		return internal.sliceP;
+	}
+
+	Format Surface::getStencilFormat() const
+	{
+		return stencil.format;
 	}
 
 	int Surface::getStencilPitchB() const

@@ -28,7 +28,7 @@
 #include "VertexDataManager.h"
 #include "IndexDataManager.h"
 #include "libEGL/Display.h"
-#include "libEGL/Surface.h"
+#include "libEGL/EGLSurface.h"
 #include "Common/Half.hpp"
 
 #include <EGL/eglext.h>
@@ -37,8 +37,9 @@ using std::abs;
 
 namespace es1
 {
-Context::Context(const egl::Config *config, const Context *shareContext)
-	: modelViewStack(MAX_MODELVIEW_STACK_DEPTH),
+Context::Context(egl::Display *const display, const Context *shareContext)
+	: egl::Context(display),
+	  modelViewStack(MAX_MODELVIEW_STACK_DEPTH),
 	  projectionStack(MAX_PROJECTION_STACK_DEPTH),
 	  textureStack0(MAX_TEXTURE_STACK_DEPTH),
 	  textureStack1(MAX_TEXTURE_STACK_DEPTH)
@@ -1172,6 +1173,24 @@ bool Context::getFloatv(GLenum pname, GLfloat *params)
 		for(int i = 0; i < 16; i++)
 		{
 			params[i] = projectionStack.current()[i % 4][i / 4];
+		}
+		break;
+	case GL_CURRENT_COLOR:
+		for(int i = 0; i < 4; i++)
+		{
+			params[i] = mState.vertexAttribute[sw::Color0].mCurrentValue[i];
+		}
+		break;
+	case GL_CURRENT_NORMAL:
+		for(int i = 0; i < 3; i++)
+		{
+			params[i] = mState.vertexAttribute[sw::Normal].mCurrentValue[i];
+		}
+		break;
+	case GL_CURRENT_TEXTURE_COORDS:
+		for(int i = 0; i < 4; i++)
+		{
+			params[i] = mState.vertexAttribute[sw::TexCoord0].mCurrentValue[i];
 		}
 		break;
 	default:
@@ -3157,7 +3176,12 @@ egl::Image *Context::createSharedImage(EGLenum target, GLuint name, GLuint textu
 	}
 	else UNREACHABLE(target);
 
-	return 0;
+	return nullptr;
+}
+
+egl::Image *Context::getSharedImage(GLeglImageOES image)
+{
+	return display->getSharedImage(image);
 }
 
 Device *Context::getDevice()
@@ -3446,8 +3470,8 @@ unsigned int Context::getActiveTexture() const
 
 }
 
-egl::Context *es1CreateContext(const egl::Config *config, const egl::Context *shareContext)
+egl::Context *es1CreateContext(egl::Display *display, const egl::Context *shareContext)
 {
 	ASSERT(!shareContext || shareContext->getClientVersion() == 1);   // Should be checked by eglCreateContext
-	return new es1::Context(config, static_cast<const es1::Context*>(shareContext));
+	return new es1::Context(display, static_cast<const es1::Context*>(shareContext));
 }

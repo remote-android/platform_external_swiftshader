@@ -18,7 +18,7 @@
 
 #include "libGLES_CM.hpp"
 #include "Framebuffer.h"
-#include "libEGL/Surface.h"
+#include "libEGL/EGLSurface.h"
 #include "Common/Thread.hpp"
 #include "Common/SharedLibrary.hpp"
 #include "common/debug.h"
@@ -330,11 +330,11 @@ void DrawTexfOES(GLfloat x, GLfloat y, GLfloat z, GLfloat width, GLfloat height)
 void DrawTexfvOES(const GLfloat *coords);
 }
 
-egl::Context *es1CreateContext(const egl::Config *config, const egl::Context *shareContext);
+egl::Context *es1CreateContext(egl::Display *display, const egl::Context *shareContext);
 extern "C" __eglMustCastToProperFunctionPointerType es1GetProcAddress(const char *procname);
 egl::Image *createBackBuffer(int width, int height, const egl::Config *config);
 egl::Image *createDepthStencil(unsigned int width, unsigned int height, sw::Format format, int multiSampleDepth, bool discard);
-sw::FrameBuffer *createFrameBuffer(void *display, EGLNativeWindowType window, int width, int height);
+sw::FrameBuffer *createFrameBuffer(void *nativeDisplay, EGLNativeWindowType window, int width, int height);
 
 extern "C"
 {
@@ -1412,6 +1412,10 @@ GL_API void GL_APIENTRY glDrawTexfvOES(const GLfloat *coords)
 	return es1::DrawTexfvOES(coords);
 }
 
+void GL_APIENTRY Register(const char *licenseKey)
+{
+	// Nothing to do, SwiftShader is open-source
+}
 }
 
 LibGLES_CMexports::LibGLES_CMexports()

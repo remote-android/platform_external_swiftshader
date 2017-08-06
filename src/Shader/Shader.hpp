@@ -495,8 +495,8 @@ namespace sw
 			bool isBranch() const;
 			bool isCall() const;
 			bool isBreak() const;
-			bool isLoopOrSwitch() const;
-			bool isEndLoopOrSwitch() const;
+			bool isLoop() const;
+			bool isEndLoop() const;
 
 			bool isPredicated() const;
 
@@ -508,8 +508,8 @@ namespace sw
 
 				struct
 				{
-					unsigned char project : 1;
-					unsigned char bias : 1;
+					unsigned char project : 1;   // D3DSI_TEXLD_PROJECT
+					unsigned char bias : 1;      // D3DSI_TEXLD_BIAS
 				};
 			};
 
@@ -552,7 +552,7 @@ namespace sw
 		void append(Instruction *instruction);
 		void declareSampler(int i);
 
-		const Instruction *getInstruction(unsigned int i) const;
+		const Instruction *getInstruction(size_t i) const;
 		int size(unsigned long opcode) const;
 		static int size(unsigned long opcode, unsigned short version);
 
@@ -572,7 +572,7 @@ namespace sw
 
 		struct Semantic
 		{
-			Semantic(unsigned char usage = 0xFF, unsigned char index = 0xFF) : usage(usage), index(index), centroid(false)
+			Semantic(unsigned char usage = 0xFF, unsigned char index = 0xFF, bool flat = false) : usage(usage), index(index), centroid(false), flat(flat)
 			{
 			}
 
@@ -589,10 +589,10 @@ namespace sw
 			unsigned char usage;
 			unsigned char index;
 			bool centroid;
+			bool flat;
 		};
 
 		void optimize();
-		virtual void analyze() = 0;
 
 		// FIXME: Private
 		unsigned int dirtyConstantsF;

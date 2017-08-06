@@ -22,6 +22,7 @@
 #include "Config.h"
 #include "Common/MutexLock.hpp"
 #include "Sync.hpp"
+#include "common/NameSpace.hpp"
 
 #include <set>
 
@@ -29,12 +30,15 @@ namespace egl
 {
 	class Surface;
 	class Context;
+	class Image;
 
-	const EGLDisplay PRIMARY_DISPLAY = (EGLDisplay)1;
-	const EGLDisplay HEADLESS_DISPLAY = (EGLDisplay)0xFACE1E55;
+	const EGLDisplay PRIMARY_DISPLAY  = reinterpret_cast<EGLDisplay>((intptr_t)1);
+	const EGLDisplay HEADLESS_DISPLAY = reinterpret_cast<EGLDisplay>((intptr_t)0xFACE1E55);
 
 	class Display
 	{
+		virtual void typeinfo();   // Dummy key method (https://gcc.gnu.org/onlinedocs/gcc/Vague-Linkage.html)
+
 	public:
 		static Display *get(EGLDisplay dpy);
 
@@ -65,7 +69,10 @@ namespace egl
 		EGLint getMaxSwapInterval() const;
 
 		void *getNativeDisplay() const;
-		const char *getExtensionString() const;
+
+		EGLImageKHR createSharedImage(Image *image);
+		bool destroySharedImage(EGLImageKHR);
+		virtual Image *getSharedImage(EGLImageKHR name);
 
 	private:
 		explicit Display(void *nativeDisplay);
@@ -87,8 +94,10 @@ namespace egl
 		ContextSet mContextSet;
 
 		typedef std::set<FenceSync*> SyncSet;
-		sw::BackoffLock mSyncSetMutex;
+		sw::MutexLock mSyncSetMutex;
 		SyncSet mSyncSet;
+
+		gl::NameSpace<Image> mSharedImageNameSpace;
 	};
 }
 
