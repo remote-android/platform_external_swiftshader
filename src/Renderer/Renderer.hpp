@@ -65,6 +65,7 @@ namespace sw
 		bool fullPixelPositionRegister;
 		bool leadingVertexFirst;
 		bool secondaryColor;
+		bool colorsDefaultToZero;
 	};
 
 	static const Conventions OpenGL =
@@ -74,7 +75,8 @@ namespace sw
 		true,    // booleanFaceRegister
 		true,    // fullPixelPositionRegister
 		false,   // leadingVertexFirst
-		false    // secondaryColor
+		false,   // secondaryColor
+		true,    // colorsDefaultToZero
 	};
 
 	static const Conventions Direct3D =
@@ -85,6 +87,7 @@ namespace sw
 		false,   // fullPixelPositionRegister
 		true,    // leadingVertexFirst
 		true,    // secondardyColor
+		false,   // colorsDefaultToZero
 	};
 
 	struct Query
@@ -234,13 +237,13 @@ namespace sw
 		Resource* vUniformBuffers[MAX_UNIFORM_BUFFER_BINDINGS];
 		Resource* transformFeedbackBuffers[MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS];
 
-		int vsDirtyConstF;
-		int vsDirtyConstI;
-		int vsDirtyConstB;
+		unsigned int vsDirtyConstF;
+		unsigned int vsDirtyConstI;
+		unsigned int vsDirtyConstB;
 
-		int psDirtyConstF;
-		int psDirtyConstI;
-		int psDirtyConstB;
+		unsigned int psDirtyConstF;
+		unsigned int psDirtyConstI;
+		unsigned int psDirtyConstB;
 
 		std::list<Query*> *queries;
 
@@ -321,10 +324,11 @@ namespace sw
 		void *operator new(size_t size);
 		void operator delete(void * mem);
 
-		void clear(void* pixel, Format format, Surface *dest, const SliceRect &dRect, unsigned int rgbaMask);
+		void draw(DrawType drawType, unsigned int indexOffset, unsigned int count, bool update = true);
+
+		void clear(void *value, Format format, Surface *dest, const Rect &rect, unsigned int rgbaMask);
 		void blit(Surface *source, const SliceRect &sRect, Surface *dest, const SliceRect &dRect, bool filter, bool isStencil = false);
 		void blit3D(Surface *source, Surface *dest);
-		void draw(DrawType drawType, unsigned int indexOffset, unsigned int count, bool update = true);
 
 		void setIndexBuffer(Resource *indexBuffer);
 
@@ -344,6 +348,7 @@ namespace sw
 		void setMipmapLOD(SamplerType type, int sampler, float bias);
 		void setBorderColor(SamplerType type, int sampler, const Color<float> &borderColor);
 		void setMaxAnisotropy(SamplerType type, int sampler, float maxAnisotropy);
+		void setHighPrecisionFiltering(SamplerType type, int sampler, bool highPrecisionFiltering);
 		void setSwizzleR(SamplerType type, int sampler, SwizzleType swizzleR);
 		void setSwizzleG(SamplerType type, int sampler, SwizzleType swizzleG);
 		void setSwizzleB(SamplerType type, int sampler, SwizzleType swizzleB);
@@ -366,13 +371,13 @@ namespace sw
 		void setPixelShader(const PixelShader *shader);
 		void setVertexShader(const VertexShader *shader);
 
-		void setPixelShaderConstantF(int index, const float value[4], int count = 1);
-		void setPixelShaderConstantI(int index, const int value[4], int count = 1);
-		void setPixelShaderConstantB(int index, const int *boolean, int count = 1);
+		void setPixelShaderConstantF(unsigned int index, const float value[4], unsigned int count = 1);
+		void setPixelShaderConstantI(unsigned int index, const int value[4], unsigned int count = 1);
+		void setPixelShaderConstantB(unsigned int index, const int *boolean, unsigned int count = 1);
 
-		void setVertexShaderConstantF(int index, const float value[4], int count = 1);
-		void setVertexShaderConstantI(int index, const int value[4], int count = 1);
-		void setVertexShaderConstantB(int index, const int *boolean, int count = 1);
+		void setVertexShaderConstantF(unsigned int index, const float value[4], unsigned int count = 1);
+		void setVertexShaderConstantI(unsigned int index, const int value[4], unsigned int count = 1);
+		void setVertexShaderConstantB(unsigned int index, const int *boolean, unsigned int count = 1);
 
 		// Viewport & Clipper
 		void setViewport(const Viewport &viewport);
@@ -431,6 +436,7 @@ namespace sw
 
 		Context *context;
 		Clipper *clipper;
+		Blitter *blitter;
 		Viewport viewport;
 		Rect scissor;
 		int clipFlags;

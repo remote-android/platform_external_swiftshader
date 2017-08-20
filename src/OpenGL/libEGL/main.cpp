@@ -18,7 +18,7 @@
 
 #include "libEGL.hpp"
 #include "Context.hpp"
-#include "EGLSurface.h"
+#include "Surface.hpp"
 
 #include "resource.h"
 #include "Common/Thread.hpp"
@@ -212,20 +212,6 @@ EGLenum getCurrentAPI()
 	return current->API;
 }
 
-void setCurrentDisplay(EGLDisplay dpy)
-{
-	Current *current = getCurrent();
-
-	current->display = dpy;
-}
-
-EGLDisplay getCurrentDisplay()
-{
-	Current *current = getCurrent();
-
-	return current->display;
-}
-
 void setCurrentContext(egl::Context *ctx)
 {
 	Current *current = getCurrent();
@@ -243,7 +229,7 @@ void setCurrentContext(egl::Context *ctx)
 	current->context = ctx;
 }
 
-egl::Context *getCurrentContext()
+NO_SANITIZE_FUNCTION egl::Context *getCurrentContext()
 {
 	Current *current = getCurrent();
 
