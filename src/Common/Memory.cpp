@@ -14,6 +14,7 @@
 
 #include "Memory.hpp"
 
+#include <stdlib.h>
 #include "Types.hpp"
 #include "Debug.hpp"
 
@@ -28,7 +29,15 @@
 	#include <unistd.h>
 #endif
 
+#include <errno.h>
 #include <memory.h>
+#include <string.h>
+
+#ifdef __ANDROID__
+	#include <cutils/log.h>
+#else
+	#define ALOGE(...) do { } while(0)
+#endif
 
 #undef allocate
 #undef deallocate
@@ -116,7 +125,13 @@ void markExecutable(void *memory, size_t bytes)
 		unsigned long oldProtection;
 		VirtualProtect(memory, bytes, PAGE_EXECUTE_READ, &oldProtection);
 	#else
-		mprotect(memory, bytes, PROT_READ | PROT_EXEC);
+		if (mprotect(memory, bytes, PROT_READ | PROT_EXEC) == -1)
+		{
+			ALOGE("mprotect failed (%s)", strerror(errno));
+		#ifdef MPROTECT_FAILURE_IS_FATAL
+			abort();
+		#endif
+		}
 	#endif
 }
 
@@ -126,7 +141,13 @@ void deallocateExecutable(void *memory, size_t bytes)
 		unsigned long oldProtection;
 		VirtualProtect(memory, bytes, PAGE_READWRITE, &oldProtection);
 	#else
-		mprotect(memory, bytes, PROT_READ | PROT_WRITE);
+		if (mprotect(memory, bytes, PROT_READ | PROT_WRITE) == -1)
+		{
+			ALOGE("mprotect failed (%s)", strerror(errno));
+		#ifdef MPROTECT_FAILURE_IS_FATAL
+			abort();
+		#endif
+		}
 	#endif
 
 	deallocate(memory);
@@ -158,5 +179,16 @@ void clear(uint32_t *memory, uint32_t element, size_t count)
 			memory[i] = element;
 		}
 	#endif
+}
+
+void testAllocateExecutable()
+{
+	void *memory = allocateExecutable(memoryPageSize());
+	if (!memory)
+	{
+		abort();
+	}
+	markExecutable(memory, memoryPageSize());
+	deallocateExecutable(memory, memoryPageSize());
 }
 }

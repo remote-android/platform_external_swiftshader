@@ -21,6 +21,7 @@
 #include "Context.hpp"
 #include "common/Image.hpp"
 #include "common/debug.h"
+#include "Common/Memory.hpp"
 #include "Common/Version.h"
 
 #if defined(__ANDROID__)
@@ -113,6 +114,9 @@ EGLDisplay GetDisplay(EGLNativeDisplayType display_id)
 {
 	TRACE("(EGLNativeDisplayType display_id = %p)", display_id);
 
+	// Ensure that we're running in a context that will allow us to
+	// compile and run shaders.
+	sw::testAllocateExecutable();
 	if(display_id != EGL_DEFAULT_DISPLAY)
 	{
 		// FIXME: Check if display_id is the default display

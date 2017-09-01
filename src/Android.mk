@@ -119,6 +119,11 @@ COMMON_CFLAGS := \
 	-std=c++11 \
 	-DNO_SANITIZE_FUNCTION=
 
+ifneq (,$(filter gce% vsoc% calypso, $(TARGET_DEVICE)))
+COMMON_CFLAGS += \
+       -DMPROTECT_FAILURE_IS_FATAL
+endif
+
 ifneq (16,${PLATFORM_SDK_VERSION})
 COMMON_CFLAGS += -Xclang -fuse-init-array
 else

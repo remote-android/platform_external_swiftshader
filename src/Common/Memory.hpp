@@ -31,6 +31,7 @@ void deallocateExecutable(void *memory, size_t bytes);
 
 void clear(uint16_t *memory, uint16_t element, size_t count);
 void clear(uint32_t *memory, uint32_t element, size_t count);
+void testAllocateExecutable();  // Confirms that allocate executable works.
 }
 
 #endif   // Memory_hpp
