@@ -5,9 +5,6 @@ COMMON_C_INCLUDES := \
 	$(LOCAL_PATH)/../../../include \
 	$(LOCAL_PATH)/../ \
 	$(LOCAL_PATH)/../../ \
-	$(LOCAL_PATH)/../../../third_party/LLVM/include-android \
-	$(LOCAL_PATH)/../../../third_party/LLVM/include \
-	$(LOCAL_PATH)/../../../third_party/LLVM/lib/Target/X86 \
 	$(LOCAL_PATH)/../../Renderer/ \
 	$(LOCAL_PATH)/../../Common/ \
 	$(LOCAL_PATH)/../../Shader/ \
@@ -23,6 +20,9 @@ COMMON_CFLAGS := \
 	-Wno-unused-parameter \
 	-Wno-implicit-exception-spec-mismatch \
 	-Wno-overloaded-virtual \
+	-Wno-attributes \
+	-Wno-unknown-attributes \
+	-Wno-unknown-warning-option \
 	-fno-operator-names \
 	-msse2 \
 	-D__STDC_CONSTANT_MACROS \
@@ -69,7 +69,6 @@ COMMON_SRC_FILES := \
 	SymbolTable.cpp \
 	TranslatorASM.cpp \
 	util.cpp \
-	ValidateGlobalInitializer.cpp \
 	ValidateLimitations.cpp \
 	ValidateSwitch.cpp \
 
@@ -77,6 +76,7 @@ include $(CLEAR_VARS)
 LOCAL_CLANG := true
 LOCAL_MODULE := swiftshader_compiler_release
 LOCAL_MODULE_TAGS := optional
+LOCAL_VENDOR_MODULE := true
 LOCAL_SRC_FILES := $(COMMON_SRC_FILES)
 LOCAL_CFLAGS += \
 	$(COMMON_CFLAGS) \
@@ -84,12 +84,14 @@ LOCAL_CFLAGS += \
 	-fdata-sections \
 	-DANGLE_DISABLE_TRACE
 LOCAL_C_INCLUDES := $(COMMON_C_INCLUDES)
+LOCAL_SHARED_LIBRARIES := libcutils
 include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_CLANG := true
 LOCAL_MODULE := swiftshader_compiler_debug
 LOCAL_MODULE_TAGS := optional
+LOCAL_VENDOR_MODULE := true
 LOCAL_SRC_FILES := $(COMMON_SRC_FILES)
 
 LOCAL_CFLAGS += \
@@ -99,4 +101,5 @@ LOCAL_CFLAGS += \
 	-O0
 
 LOCAL_C_INCLUDES := $(COMMON_C_INCLUDES)
+LOCAL_SHARED_LIBRARIES := libcutils
 include $(BUILD_STATIC_LIBRARY)
