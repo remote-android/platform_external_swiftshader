@@ -17,14 +17,7 @@ endif
 
 COMMON_CFLAGS := \
 	-DLOG_TAG=\"swiftshader_compiler\" \
-	-Wall \
-	-Werror \
-	-Wno-format \
-	-Wno-sign-compare \
-	-Wno-unneeded-internal-declaration \
-	-Wno-unused-const-variable \
 	-Wno-unused-parameter \
-	-Wno-unused-variable \
 	-Wno-implicit-exception-spec-mismatch \
 	-Wno-overloaded-virtual \
 	-Wno-attributes \
