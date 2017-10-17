@@ -398,18 +398,9 @@ LOCAL_SRC_FILES += \
 
 
 LOCAL_CFLAGS += -DLOG_TAG=\"libLLVM_swiftshader\" \
-	-Wall \
-	-Werror \
-	-Wno-implicit-exception-spec-mismatch \
-	-Wno-overloaded-virtual \
-	-Wno-undefined-var-template \
-	-Wno-unneeded-internal-declaration \
-	-Wno-unused-const-variable \
-	-Wno-unused-function \
-	-Wno-unused-local-typedef \
 	-Wno-unused-parameter \
-	-Wno-unused-private-field \
-	-Wno-unused-variable \
+	-Wno-implicit-exception-spec-mismatch \
+	-Wno-overloaded-virtual
 
 ifneq (16,${PLATFORM_SDK_VERSION})
 LOCAL_CFLAGS += -Xclang -fuse-init-array
