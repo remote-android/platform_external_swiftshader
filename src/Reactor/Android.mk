@@ -108,7 +108,8 @@ LOCAL_SRC_FILES += \
 
 LOCAL_CPPFLAGS := -std=c++11
 
-LOCAL_CFLAGS += -DLOG_TAG=\"libsubzero\" \
+LOCAL_CFLAGS += \
+	-DLOG_TAG=\"libsubzero\" \
 	-Wall \
 	-Werror \
 	-Wno-error=undefined-var-template \
@@ -116,7 +117,8 @@ LOCAL_CFLAGS += -DLOG_TAG=\"libsubzero\" \
 	-Wno-unused-parameter \
 	-Wno-implicit-exception-spec-mismatch \
 	-Wno-overloaded-virtual \
-	-Wno-non-virtual-dtor
+	-Wno-non-virtual-dtor \
+	-Wno-unknown-warning-option
 
 ifneq (16,${PLATFORM_SDK_VERSION})
 LOCAL_CFLAGS += -Xclang -fuse-init-array
