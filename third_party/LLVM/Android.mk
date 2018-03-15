@@ -396,8 +396,8 @@ LOCAL_SRC_FILES += \
 	lib/VMCore/ValueTypes.cpp \
 	lib/VMCore/Verifier.cpp \
 
-
-LOCAL_CFLAGS += -DLOG_TAG=\"libLLVM_swiftshader\" \
+LOCAL_CFLAGS += \
+	-DLOG_TAG=\"libLLVM_swiftshader\" \
 	-Wall \
 	-Werror \
 	-Wno-implicit-exception-spec-mismatch \
@@ -410,6 +410,7 @@ LOCAL_CFLAGS += -DLOG_TAG=\"libLLVM_swiftshader\" \
 	-Wno-unused-parameter \
 	-Wno-unused-private-field \
 	-Wno-unused-variable \
+	-Wno-unknown-warning-option
 
 ifneq (16,${PLATFORM_SDK_VERSION})
 LOCAL_CFLAGS += -Xclang -fuse-init-array
