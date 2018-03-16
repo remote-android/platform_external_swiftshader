@@ -110,7 +110,8 @@ macro(set_target_export_map TARGET DIR)
         # hides all the others. Gc sections is used in combination
         # with each functions being in its section, to reduce the
         # binary size.
-        set_target_properties(${TARGET} PROPERTIES LINK_FLAGS "${LINKFLAGS} -Wl,--hash-style=both,--version-script=${DIR}/exports.map,--gc-sections,--no-undefined")
+        set_target_properties(${TARGET} PROPERTIES LINK_FLAGS "${LINKFLAGS} -Wl,--hash-style=both,--version-script=${DIR}/${TARGET}.lds,--gc-sections,--no-undefined")
+        set_target_properties(${TARGET} PROPERTIES LINK_DEPENDS "${DIR}/${TARGET}.lds")
     endif()
 endmacro()
 
@@ -149,6 +150,8 @@ if(MSVC)
 else()
     set_cpp_flag("--std=c++11")
     set_cpp_flag("-Wall")
+    set_cpp_flag("-Werror=reorder")
+    set_cpp_flag("-Werror=sign-compare")
     set_cpp_flag("-fno-exceptions")
 
     # Don't allow symbols to be overridden by another module.
@@ -165,12 +168,15 @@ else()
     if(ARCH EQUAL "x86")
         set_cpp_flag("-m32")
         set_cpp_flag("-msse2")
-        set_cpp_flag("-march=i686")
+        set_cpp_flag("-mfpmath=sse")
+        set_cpp_flag("-march=pentium4")
+        set_cpp_flag("-mtune=generic")
     endif()
     if(ARCH EQUAL "x86_64")
         set_cpp_flag("-m64")
         set_cpp_flag("-fPIC")
-        set_cpp_flag("-march=core2")
+        set_cpp_flag("-march=x86-64")
+        set_cpp_flag("-mtune=generic")
     endif()
 
     # Use -g3 to have even more debug info
@@ -687,11 +693,6 @@ endif()
 
 set(COMMON_INCLUDE_DIR
     ${SOURCE_DIR}
-    ${SOURCE_DIR}/Common
-    ${SOURCE_DIR}/Main
-    ${SOURCE_DIR}/Reactor
-    ${SOURCE_DIR}/Renderer
-    ${SOURCE_DIR}/Shader
     ${CMAKE_SOURCE_DIR}/include
     ${LLVM_INCLUDE_DIR}
 )
