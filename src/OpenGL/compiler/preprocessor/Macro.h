@@ -19,6 +19,10 @@
 #include <memory>
 #include <string>
 #include <vector>
+#if defined(ANDROID_PLATFORM_SDK_VERSION) && (ANDROID_PLATFORM_SDK_VERSION < 23)
+#include "Workarounds/smart_ptr.h"
+#include "Workarounds/to_string.h"
+#endif
 
 namespace pp
 {
