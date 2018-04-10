@@ -853,7 +853,9 @@ elseif(LINUX)
 elseif(APPLE)
     find_library(COCOA_FRAMEWORK Cocoa)
     find_library(QUARTZ_FRAMEWORK Quartz)
-    set(OS_LIBS "${COCOA_FRAMEWORK}" "${QUARTZ_FRAMEWORK}")
+    find_library(CORE_FOUNDATION_FRAMEWORK CoreFoundation)
+    find_library(IOSURFACE_FRAMEWORK IOSurface)
+    set(OS_LIBS "${COCOA_FRAMEWORK}" "${QUARTZ_FRAMEWORK}" "${CORE_FOUNDATION_FRAMEWORK}" "${IOSURFACE_FRAMEWORK}")
 endif()
 
 ###########################################################
@@ -914,6 +916,8 @@ if(BUILD_EGL)
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:libEGL>/translator
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:libEGL> $<TARGET_FILE_DIR:libEGL>/translator/${LIB_PREFIX}EGL_translator${CMAKE_SHARED_LIBRARY_SUFFIX}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/out/${CMAKE_SYSTEM_NAME}/
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:libEGL> ${CMAKE_SOURCE_DIR}/out/${CMAKE_SYSTEM_NAME}/
     )
 endif()
 
@@ -944,6 +948,8 @@ if(BUILD_GLESv2)
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:libGLESv2>/translator
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:libGLESv2> $<TARGET_FILE_DIR:libGLESv2>/translator/${LIB_PREFIX}GLES_V2_translator${CMAKE_SHARED_LIBRARY_SUFFIX}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/out/${CMAKE_SYSTEM_NAME}/
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:libGLESv2> ${CMAKE_SOURCE_DIR}/out/${CMAKE_SYSTEM_NAME}/
     )
 endif()
 
