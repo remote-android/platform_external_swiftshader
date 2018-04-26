@@ -396,6 +396,7 @@ EGLSurface Display::createPBufferSurface(EGLConfig config, const EGLint *attribL
 				{
 				case GL_UNSIGNED_BYTE:
 				case GL_UNSIGNED_SHORT:
+				case GL_HALF_FLOAT_OES:
 				case GL_HALF_FLOAT:
 					clientBufferType = attribList[1];
 					break;
@@ -493,6 +494,7 @@ EGLSurface Display::createPBufferSurface(EGLConfig config, const EGLint *attribL
 				return error(EGL_BAD_PARAMETER, EGL_NO_SURFACE);
 			}
 			break;
+		case GL_HALF_FLOAT_OES:
 		case GL_HALF_FLOAT:
 			switch(clientBufferFormat)
 			{
