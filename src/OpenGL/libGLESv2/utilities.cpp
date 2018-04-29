@@ -383,8 +383,14 @@ namespace es2
 		switch(internalformat)
 		{
 		case GL_ALPHA8_EXT:
-		case GL_LUMINANCE8_ALPHA8_EXT:
 		case GL_LUMINANCE8_EXT:
+		case GL_LUMINANCE8_ALPHA8_EXT:
+		case GL_ALPHA32F_EXT:
+		case GL_LUMINANCE32F_EXT:
+		case GL_LUMINANCE_ALPHA32F_EXT:
+		case GL_ALPHA16F_EXT:
+		case GL_LUMINANCE16F_EXT:
+		case GL_LUMINANCE_ALPHA16F_EXT:
 		case GL_R8:
 		case GL_R8UI:
 		case GL_R8I:
@@ -565,7 +571,8 @@ namespace es2
 		{
 		case GL_ALPHA:
 			if(baseColorbufferFormat != GL_ALPHA &&
-			   baseColorbufferFormat != GL_RGBA)
+			   baseColorbufferFormat != GL_RGBA &&
+			   baseColorbufferFormat != GL_BGRA_EXT)   // GL_EXT_texture_format_BGRA8888 / GL_APPLE_texture_format_BGRA8888
 			{
 				return error(GL_INVALID_OPERATION, false);
 			}
@@ -583,7 +590,8 @@ namespace es2
 			if(baseColorbufferFormat != GL_RED &&
 			   baseColorbufferFormat != GL_RG &&
 			   baseColorbufferFormat != GL_RGB &&
-			   baseColorbufferFormat != GL_RGBA)
+			   baseColorbufferFormat != GL_RGBA &&
+			   baseColorbufferFormat != GL_BGRA_EXT)   // GL_EXT_texture_format_BGRA8888 / GL_APPLE_texture_format_BGRA8888
 			{
 				return error(GL_INVALID_OPERATION, false);
 			}
@@ -591,14 +599,16 @@ namespace es2
 		case GL_RG:
 			if(baseColorbufferFormat != GL_RG &&
 			   baseColorbufferFormat != GL_RGB &&
-			   baseColorbufferFormat != GL_RGBA)
+			   baseColorbufferFormat != GL_RGBA &&
+			   baseColorbufferFormat != GL_BGRA_EXT)   // GL_EXT_texture_format_BGRA8888 / GL_APPLE_texture_format_BGRA8888
 			{
 				return error(GL_INVALID_OPERATION, false);
 			}
 			break;
 		case GL_RGB:
 			if(baseColorbufferFormat != GL_RGB &&
-			   baseColorbufferFormat != GL_RGBA)
+			   baseColorbufferFormat != GL_RGBA &&
+			   baseColorbufferFormat != GL_BGRA_EXT)   // GL_EXT_texture_format_BGRA8888 / GL_APPLE_texture_format_BGRA8888
 			{
 				return error(GL_INVALID_OPERATION, false);
 			}
@@ -783,6 +793,7 @@ namespace es2
 		case GL_UNSIGNED_SHORT_5_6_5:
 		case GL_FLOAT:               // GL_OES_texture_float
 		case GL_HALF_FLOAT_OES:      // GL_OES_texture_half_float
+		case GL_HALF_FLOAT:
 		case GL_UNSIGNED_INT_24_8:   // GL_OES_packed_depth_stencil (GL_UNSIGNED_INT_24_8_EXT)
 		case GL_UNSIGNED_SHORT:      // GL_OES_depth_texture
 		case GL_UNSIGNED_INT:        // GL_OES_depth_texture
@@ -790,7 +801,6 @@ namespace es2
 		case GL_BYTE:
 		case GL_SHORT:
 		case GL_INT:
-		case GL_HALF_FLOAT:
 		case GL_UNSIGNED_INT_2_10_10_10_REV:
 		case GL_UNSIGNED_INT_10F_11F_11F_REV:
 		case GL_UNSIGNED_INT_5_9_9_9_REV:
@@ -957,10 +967,10 @@ namespace es2
 			{
 			case GL_UNSIGNED_BYTE:               VALIDATE_INTERNALFORMAT(GL_RGBA8, GL_RGB5_A1, GL_RGBA4, GL_SRGB8_ALPHA8)
 			case GL_BYTE:                        VALIDATE_INTERNALFORMAT(GL_RGBA8_SNORM)
-			case GL_HALF_FLOAT_OES:              VALIDATE_INTERNALFORMAT(GL_RGBA16F)
 			case GL_UNSIGNED_SHORT_4_4_4_4:      VALIDATE_INTERNALFORMAT(GL_RGBA4)
 			case GL_UNSIGNED_SHORT_5_5_5_1:      VALIDATE_INTERNALFORMAT(GL_RGB5_A1)
 			case GL_UNSIGNED_INT_2_10_10_10_REV: VALIDATE_INTERNALFORMAT(GL_RGB10_A2, GL_RGB5_A1)
+			case GL_HALF_FLOAT_OES:
 			case GL_HALF_FLOAT:                  VALIDATE_INTERNALFORMAT(GL_RGBA16F)
 			case GL_FLOAT:                       VALIDATE_INTERNALFORMAT(GL_RGBA32F, GL_RGBA16F)
 			default:                             return GL_INVALID_OPERATION;
@@ -984,10 +994,10 @@ namespace es2
 			{
 			case GL_UNSIGNED_BYTE:                VALIDATE_INTERNALFORMAT(GL_RGB8, GL_RGB565, GL_SRGB8)
 			case GL_BYTE:                         VALIDATE_INTERNALFORMAT(GL_RGB8_SNORM)
-			case GL_HALF_FLOAT_OES:               VALIDATE_INTERNALFORMAT(GL_RGB16F)
 			case GL_UNSIGNED_SHORT_5_6_5:         VALIDATE_INTERNALFORMAT(GL_RGB565)
 			case GL_UNSIGNED_INT_10F_11F_11F_REV: VALIDATE_INTERNALFORMAT(GL_R11F_G11F_B10F)
 			case GL_UNSIGNED_INT_5_9_9_9_REV:     VALIDATE_INTERNALFORMAT(GL_RGB9_E5)
+			case GL_HALF_FLOAT_OES:
 			case GL_HALF_FLOAT:                   VALIDATE_INTERNALFORMAT(GL_RGB16F, GL_R11F_G11F_B10F, GL_RGB9_E5)
 			case GL_FLOAT:                        VALIDATE_INTERNALFORMAT(GL_RGB32F, GL_RGB16F, GL_R11F_G11F_B10F, GL_RGB9_E5)
 			default:                              return GL_INVALID_OPERATION;
@@ -1008,11 +1018,12 @@ namespace es2
 		case GL_RG:
 			switch(type)
 			{
-			case GL_UNSIGNED_BYTE: VALIDATE_INTERNALFORMAT(GL_RG8)
-			case GL_BYTE:          VALIDATE_INTERNALFORMAT(GL_RG8_SNORM)
-			case GL_HALF_FLOAT:    VALIDATE_INTERNALFORMAT(GL_RG16F)
-			case GL_FLOAT:         VALIDATE_INTERNALFORMAT(GL_RG32F, GL_RG16F)
-			default:               return GL_INVALID_OPERATION;
+			case GL_UNSIGNED_BYTE:  VALIDATE_INTERNALFORMAT(GL_RG8)
+			case GL_BYTE:           VALIDATE_INTERNALFORMAT(GL_RG8_SNORM)
+			case GL_HALF_FLOAT_OES:
+			case GL_HALF_FLOAT:     VALIDATE_INTERNALFORMAT(GL_RG16F)
+			case GL_FLOAT:          VALIDATE_INTERNALFORMAT(GL_RG32F, GL_RG16F)
+			default:                return GL_INVALID_OPERATION;
 			}
 			break;
 		case GL_RG_INTEGER:
@@ -1030,11 +1041,12 @@ namespace es2
 		case GL_RED:
 			switch(type)
 			{
-			case GL_UNSIGNED_BYTE: VALIDATE_INTERNALFORMAT(GL_R8)
-			case GL_BYTE:          VALIDATE_INTERNALFORMAT(GL_R8_SNORM)
-			case GL_HALF_FLOAT:    VALIDATE_INTERNALFORMAT(GL_R16F)
-			case GL_FLOAT:         VALIDATE_INTERNALFORMAT(GL_R32F, GL_R16F)
-			default:               return GL_INVALID_OPERATION;
+			case GL_UNSIGNED_BYTE:  VALIDATE_INTERNALFORMAT(GL_R8)
+			case GL_BYTE:           VALIDATE_INTERNALFORMAT(GL_R8_SNORM)
+			case GL_HALF_FLOAT_OES:
+			case GL_HALF_FLOAT:     VALIDATE_INTERNALFORMAT(GL_R16F)
+			case GL_FLOAT:          VALIDATE_INTERNALFORMAT(GL_R32F, GL_R16F)
+			default:                return GL_INVALID_OPERATION;
 			}
 			break;
 		case GL_RED_INTEGER:
@@ -1070,7 +1082,7 @@ namespace es2
 			switch(type)
 			{
 			case GL_UNSIGNED_BYTE:  VALIDATE_INTERNALFORMAT(GL_LUMINANCE8_ALPHA8_EXT)
-			case GL_HALF_FLOAT_OES: VALIDATE_INTERNALFORMAT(GL_LUMINANCE_ALPHA16F_EXT)
+			case GL_HALF_FLOAT_OES:
 			case GL_HALF_FLOAT:     VALIDATE_INTERNALFORMAT(GL_LUMINANCE_ALPHA16F_EXT)
 			case GL_FLOAT:          VALIDATE_INTERNALFORMAT(GL_LUMINANCE_ALPHA32F_EXT, GL_LUMINANCE_ALPHA16F_EXT)
 			default:
@@ -1081,7 +1093,7 @@ namespace es2
 			switch(type)
 			{
 			case GL_UNSIGNED_BYTE:  VALIDATE_INTERNALFORMAT(GL_LUMINANCE8_EXT)
-			case GL_HALF_FLOAT_OES: VALIDATE_INTERNALFORMAT(GL_LUMINANCE16F_EXT)
+			case GL_HALF_FLOAT_OES:
 			case GL_HALF_FLOAT:     VALIDATE_INTERNALFORMAT(GL_LUMINANCE16F_EXT)
 			case GL_FLOAT:          VALIDATE_INTERNALFORMAT(GL_LUMINANCE32F_EXT, GL_LUMINANCE16F_EXT)
 			default:
@@ -1092,7 +1104,7 @@ namespace es2
 			switch(type)
 			{
 			case GL_UNSIGNED_BYTE:  VALIDATE_INTERNALFORMAT(GL_ALPHA8_EXT)
-			case GL_HALF_FLOAT_OES: VALIDATE_INTERNALFORMAT(GL_ALPHA16F_EXT)
+			case GL_HALF_FLOAT_OES:
 			case GL_HALF_FLOAT:     VALIDATE_INTERNALFORMAT(GL_ALPHA16F_EXT)
 			case GL_FLOAT:          VALIDATE_INTERNALFORMAT(GL_ALPHA32F_EXT, GL_ALPHA16F_EXT)
 			default:
@@ -1121,7 +1133,7 @@ namespace es2
 		return GL_NO_ERROR;
 	}
 
-	GLsizei GetTypeSize(GLenum type)
+	size_t GetTypeSize(GLenum type)
 	{
 		switch(type)
 		{
@@ -1131,10 +1143,10 @@ namespace es2
 		case GL_UNSIGNED_SHORT_4_4_4_4:
 		case GL_UNSIGNED_SHORT_5_5_5_1:
 		case GL_UNSIGNED_SHORT_5_6_5:
-		case GL_HALF_FLOAT_OES:
 		case GL_UNSIGNED_SHORT:
 		case GL_SHORT:
 		case GL_HALF_FLOAT:
+		case GL_HALF_FLOAT_OES:
 			return 2;
 		case GL_FLOAT:
 		case GL_UNSIGNED_INT_24_8:
@@ -1209,6 +1221,12 @@ namespace es2
 		case GL_ALPHA8_EXT:
 		case GL_LUMINANCE8_EXT:
 		case GL_LUMINANCE8_ALPHA8_EXT:
+		case GL_ALPHA32F_EXT:
+		case GL_LUMINANCE32F_EXT:
+		case GL_LUMINANCE_ALPHA32F_EXT:
+		case GL_ALPHA16F_EXT:
+		case GL_LUMINANCE16F_EXT:
+		case GL_LUMINANCE_ALPHA16F_EXT:
 		case GL_DEPTH_COMPONENT24:
 		case GL_DEPTH_COMPONENT32_OES:
 		case GL_DEPTH_COMPONENT32F:
@@ -1378,6 +1396,12 @@ namespace es2
 		case GL_ALPHA8_EXT:
 		case GL_LUMINANCE8_EXT:
 		case GL_LUMINANCE8_ALPHA8_EXT:
+		case GL_ALPHA32F_EXT:
+		case GL_LUMINANCE32F_EXT:
+		case GL_LUMINANCE_ALPHA32F_EXT:
+		case GL_ALPHA16F_EXT:
+		case GL_LUMINANCE16F_EXT:
+		case GL_LUMINANCE_ALPHA16F_EXT:
 			return true;
 		default:
 			return IsColorRenderable(internalformat, clientVersion);
@@ -1665,6 +1689,12 @@ namespace es2
 		case GL_RGBA16I:
 		case GL_RGBA32I:
 			return GL_INT;
+		case GL_ALPHA32F_EXT:
+		case GL_LUMINANCE32F_EXT:
+		case GL_LUMINANCE_ALPHA32F_EXT:
+		case GL_ALPHA16F_EXT:
+		case GL_LUMINANCE16F_EXT:
+		case GL_LUMINANCE_ALPHA16F_EXT:
 		case GL_R16F:
 		case GL_RG16F:
 		case GL_R11F_G11F_B10F:
