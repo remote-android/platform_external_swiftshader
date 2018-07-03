@@ -254,7 +254,7 @@ public:
 class LibGLESv2
 {
 public:
-	LibGLESv2(const std::string libraryDirectory) : libraryDirectory(libraryDirectory)
+	LibGLESv2()
 	{
 	}
 
@@ -308,7 +308,8 @@ private:
 				#error "libGLESv2::loadExports unimplemented for this platform"
 			#endif
 
-			libGLESv2 = loadLibrary(libraryDirectory, libGLESv2_lib, "libGLESv2_swiftshader");
+			std::string directory = getModuleDirectory();
+			libGLESv2 = loadLibrary(directory, libGLESv2_lib, "libGLESv2_swiftshader");
 
 			if(libGLESv2)
 			{
@@ -322,7 +323,6 @@ private:
 
 	void *libGLESv2 = nullptr;
 	LibGLESv2exports *libGLESv2exports = nullptr;
-	const std::string libraryDirectory;
 };
 
 #endif   // libGLESv2_hpp
