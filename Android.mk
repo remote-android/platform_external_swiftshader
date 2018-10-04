@@ -17,9 +17,10 @@
 LOCAL_PATH := $(call my-dir)
 
 # Use Subzero as the Reactor JIT back-end on ARM, else LLVM.
-ifeq ($(TARGET_ARCH),$(filter $(TARGET_ARCH),arm))
+# TODO(b/115344057) Consider turning LLVM back on, off for now due to leaks
+#ifeq ($(TARGET_ARCH),$(filter $(TARGET_ARCH),arm))
 use_subzero := true
-endif
+#endif
 
 # Subzero requires full C++11 support, which is available from Marshmallow and up.
 ifdef use_subzero
