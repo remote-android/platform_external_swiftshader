@@ -3,6 +3,7 @@
 # This list is used by Chromium and Android to make sure that one of the owners
 # in this list has approved a SwiftShader related change before landing it.
 
+ghartman@google.com
 nicolascapens@google.com
 sugoi@google.com
 
