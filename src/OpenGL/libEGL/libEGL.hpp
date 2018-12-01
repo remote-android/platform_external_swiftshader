@@ -17,8 +17,14 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <Main/FrameBufferAndroidHook.hpp>
 
 #include "Common/SharedLibrary.hpp"
+
+namespace egl
+{
+	class Context;
+}
 
 class LibEGLexports
 {
@@ -68,6 +74,7 @@ public:
 
 	// Functions that don't change the error code, for use by client APIs
 	egl::Context *(*clientGetCurrentContext)();
+	t_nativeWindowFunction (*hookNativeWindow)(t_nativeWindowFunction);
 };
 
 class LibEGL

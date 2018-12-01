@@ -613,6 +613,7 @@ LibEGLexports::LibEGLexports()
 	this->eglGetSyncAttribKHR = egl::GetSyncAttribKHR;
 
 	this->clientGetCurrentContext = egl::getCurrentContext;
+	this->hookNativeWindow = egl::hookNativeWindow;
 }
 
 extern "C" EGLAPI LibEGLexports *libEGL_swiftshader()

@@ -25,6 +25,7 @@
 
 #if defined(__ANDROID__)
 #include <system/window.h>
+#include "Main/FrameBufferAndroidHook.hpp"
 #elif defined(__linux__)
 #include "Main/libX11.hpp"
 #endif
@@ -1351,6 +1352,7 @@ __eglMustCastToProperFunctionPointerType GetProcAddress(const char *procname)
 		FUNCTION(eglGetPlatformDisplayEXT),
 		FUNCTION(eglGetProcAddress),
 		FUNCTION(eglGetSyncAttribKHR),
+		FUNCTION(eglHookNativeWindow),
 		FUNCTION(eglInitialize),
 		FUNCTION(eglMakeCurrent),
 		FUNCTION(eglQueryAPI),

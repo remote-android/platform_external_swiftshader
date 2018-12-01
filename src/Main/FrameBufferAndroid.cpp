@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #include "FrameBufferAndroid.hpp"
+#include "FrameBufferAndroidHook.hpp"
+#include "libEGL/libEGL.hpp"
+
+extern LibEGL libEGL;
 
 #include "Common/GrallocAndroid.hpp"
 
@@ -22,29 +27,20 @@ namespace sw
 {
 	inline int dequeueBuffer(ANativeWindow* window, ANativeWindowBuffer** buffer)
 	{
-		#if ANDROID_PLATFORM_SDK_VERSION > 16
-			return native_window_dequeue_buffer_and_wait(window, buffer);
-		#else
-			return window->dequeueBuffer(window, buffer);
-		#endif
+		NativeWindowRequest request{DequeueBuffer, nullptr, window, buffer, -1};
+		return libEGL->hookNativeWindow(nullptr)(&request);
 	}
 
 	inline int queueBuffer(ANativeWindow* window, ANativeWindowBuffer* buffer, int fenceFd)
 	{
-		#if ANDROID_PLATFORM_SDK_VERSION > 16
-			return window->queueBuffer(window, buffer, fenceFd);
-		#else
-			return window->queueBuffer(window, buffer);
-		#endif
+		NativeWindowRequest request{EnqueueBuffer, nullptr, window, &buffer, fenceFd};
+		return libEGL->hookNativeWindow(nullptr)(&request);
 	}
 
 	inline int cancelBuffer(ANativeWindow* window, ANativeWindowBuffer* buffer, int fenceFd)
 	{
-		#if ANDROID_PLATFORM_SDK_VERSION > 16
-			return window->cancelBuffer(window, buffer, fenceFd);
-		#else
-			return window->cancelBuffer(window, buffer);
-		#endif
+		NativeWindowRequest request{CancelBuffer, nullptr, window, &buffer, fenceFd};
+		return libEGL->hookNativeWindow(nullptr)(&request);
 	}
 
 	FrameBufferAndroid::FrameBufferAndroid(ANativeWindow* window, int width, int height)

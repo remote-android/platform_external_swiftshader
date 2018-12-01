@@ -29,7 +29,11 @@
 #include <system/window.h>
 #include <sys/ioctl.h>
 #include <linux/fb.h>
+#include <errno.h>
 #include <fcntl.h>
+
+#include <log/log.h>
+#include <Main/FrameBufferAndroidHook.hpp>
 #elif defined(__linux__)
 #include "Main/libX11.hpp"
 #elif defined(__APPLE__)
@@ -44,6 +48,49 @@
 
 namespace egl
 {
+
+#ifdef __ANDROID__
+static int defaultNativeWindowFunction(NativeWindowRequest* request) {
+	switch(request->command) {
+	case DequeueBuffer:
+		#if ANDROID_PLATFORM_SDK_VERSION > 16
+			return native_window_dequeue_buffer_and_wait(request->window, request->buffer);
+		#else
+			return window->dequeueBuffer(request->window, request->buffer);
+		#endif
+	case EnqueueBuffer:
+		#if ANDROID_PLATFORM_SDK_VERSION > 16
+			return request->window->queueBuffer(request->window, *request->buffer, request->fenceFd);
+		#else
+			return request->window->queueBuffer(request->window, *request->buffer);
+		#endif
+	case CancelBuffer:
+		#if ANDROID_PLATFORM_SDK_VERSION > 16
+			return request->window->cancelBuffer(request->window, *request->buffer, request->fenceFd);
+		#else
+			return request->window->cancelBuffer(request->window, *request->buffer);
+		#endif
+	case RegisterInnerFunction:
+		return 0;
+	default:
+		ALOGE("Unknown native window req: %d", request->command);
+		return -EIO;
+	}
+}
+
+t_nativeWindowFunction hookNativeWindow(t_nativeWindowFunction new_native_window_function) {
+	static t_nativeWindowFunction s_native_window_function = defaultNativeWindowFunction;
+
+	if (new_native_window_function) {
+		NativeWindowRequest request{RegisterInnerFunction, s_native_window_function, nullptr, nullptr, -1};
+		// This makes it easier to wrap the default implementation
+		new_native_window_function(&request);
+		s_native_window_function = new_native_window_function;
+	}
+	return s_native_window_function;
+}
+#endif
+
 
 class DisplayImplementation : public Display
 {
@@ -875,4 +922,8 @@ sw::Format Display::getDisplayFormat() const
 	return sw::FORMAT_X8R8G8B8;
 }
 
+}
+
+t_nativeWindowFunction eglHookNativeWindow(t_nativeWindowFunction new_native_window_function) {
+	return egl::hookNativeWindow(new_native_window_function);
 }
