@@ -45,8 +45,8 @@
 
 namespace es2
 {
-Context::Context(egl::Display *display, const Context *shareContext, const egl::Config *config)
-	: egl::Context(display), config(config)
+Context::Context(egl::Display *display, const Context *shareContext, EGLint clientVersion, const egl::Config *config)
+	: egl::Context(display), clientVersion(clientVersion), config(config)
 {
 	sw::Context *context = new sw::Context();
 	device = new es2::Device(context);
@@ -316,7 +316,7 @@ void Context::makeCurrent(gl::Surface *surface)
 
 EGLint Context::getClientVersion() const
 {
-	return 3;
+	return clientVersion;
 }
 
 EGLint Context::getConfigID() const
@@ -4546,7 +4546,7 @@ const GLubyte *Context::getExtensions(GLuint index, GLuint *numExt) const
 
 }
 
-NO_SANITIZE_FUNCTION egl::Context *es2CreateContext(egl::Display *display, const egl::Context *shareContext, const egl::Config *config)
+NO_SANITIZE_FUNCTION egl::Context *es2CreateContext(egl::Display *display, const egl::Context *shareContext, int clientVersion, const egl::Config *config)
 {
-	return new es2::Context(display, static_cast<const es2::Context*>(shareContext), config);
+	return new es2::Context(display, static_cast<const es2::Context*>(shareContext), clientVersion, config);
 }
