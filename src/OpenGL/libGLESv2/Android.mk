@@ -55,6 +55,7 @@ COMMON_SRC_FILES := \
 	utilities.cpp \
 	VertexArray.cpp \
 	VertexDataManager.cpp \
+	../../Common/SharedLibrary.cpp
 
 COMMON_C_INCLUDES := \
 	bionic \
@@ -66,7 +67,7 @@ COMMON_C_INCLUDES := \
 	$(LOCAL_PATH)/../../Shader/ \
 	$(LOCAL_PATH)/../../Main/
 
-ifdef use_subzero
+ifdef REACTOR_USE_SUBZERO
 COMMON_STATIC_LIBRARIES := libsubzero
 else
 COMMON_STATIC_LIBRARIES := libLLVM_swiftshader

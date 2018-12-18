@@ -24,14 +24,14 @@ namespace sw
 	{
 	public:
 		PixelProgram(const PixelProcessor::State &state, const PixelShader *shader) :
-			PixelRoutine(state, shader), r(shader->dynamicallyIndexedTemporaries),
-			loopDepth(-1), ifDepth(0), loopRepDepth(0), currentLabel(-1), whileTest(false)
+			PixelRoutine(state, shader), r(shader->indirectAddressableTemporaries)
 		{
 			for(int i = 0; i < 2048; ++i)
 			{
 				labelBlock[i] = 0;
 			}
 
+			loopDepth = -1;
 			enableStack[0] = Int4(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
 
 			if(shader->containsBreakInstruction())
@@ -55,7 +55,7 @@ namespace sw
 
 	private:
 		// Temporary registers
-		RegisterArray<4096> r;
+		RegisterArray<NUM_TEMPORARY_REGISTERS> r;
 
 		// Color outputs
 		Vector4f c[RENDERTARGETS];
@@ -94,7 +94,8 @@ namespace sw
 		Vector4f readConstant(const Src &src, unsigned int offset = 0);
 		RValue<Pointer<Byte>> uniformAddress(int bufferIndex, unsigned int index);
 		RValue<Pointer<Byte>> uniformAddress(int bufferIndex, unsigned int index, Int& offset);
-		Int relativeAddress(const Shader::Parameter &var, int bufferIndex = -1);
+		Int relativeAddress(const Shader::Relative &rel, int bufferIndex = -1);
+		Int4 dynamicAddress(const Shader::Relative &rel);
 
 		Float4 linearToSRGB(const Float4 &x);
 
@@ -128,6 +129,7 @@ namespace sw
 		void BREAK(Int4 &condition);
 		void CONTINUE();
 		void TEST();
+		void SCALAR();
 		void CALL(int labelIndex, int callSiteIndex);
 		void CALLNZ(int labelIndex, int callSiteIndex, const Src &src);
 		void CALLNZb(int labelIndex, int callSiteIndex, const Src &boolRegister);
@@ -151,10 +153,10 @@ namespace sw
 		void RET();
 		void LEAVE();
 
-		int ifDepth;
-		int loopRepDepth;
-		int currentLabel;
-		bool whileTest;
+		int ifDepth = 0;
+		int loopRepDepth = 0;
+		int currentLabel = -1;
+		bool scalar = false;
 
 		BasicBlock *ifFalseBlock[24 + 24];
 		BasicBlock *loopRepTestBlock[4];
@@ -163,6 +165,7 @@ namespace sw
 		std::vector<BasicBlock*> callRetBlock[2048];
 		BasicBlock *returnBlock;
 		bool isConditionalIf[24 + 24];
+		std::vector<Int4> restoreContinue;
 	};
 }
 
