@@ -95,15 +95,6 @@ extern "C" void X86CompilationCallback()
 }
 #endif
 
-#if defined(_WIN32)
-extern "C"
-{
-	bool (*CodeAnalystInitialize)() = 0;
-	void (*CodeAnalystCompleteJITLog)() = 0;
-	bool (*CodeAnalystLogJITCode)(const void *jitCodeStartAddr, unsigned int jitCodeSize, const wchar_t *functionName) = 0;
-}
-#endif
-
 #if REACTOR_LLVM_VERSION < 7
 namespace llvm
 {
@@ -887,18 +878,6 @@ namespace rr
 		if(!::builder)
 		{
 			::builder = new llvm::IRBuilder<>(*::context);
-
-			#if defined(_WIN32) && REACTOR_LLVM_VERSION < 7
-				HMODULE CodeAnalyst = LoadLibrary("CAJitNtfyLib.dll");
-				if(CodeAnalyst)
-				{
-					CodeAnalystInitialize = (bool(*)())GetProcAddress(CodeAnalyst, "CAJIT_Initialize");
-					CodeAnalystCompleteJITLog = (void(*)())GetProcAddress(CodeAnalyst, "CAJIT_CompleteJITLog");
-					CodeAnalystLogJITCode = (bool(*)(const void*, unsigned int, const wchar_t*))GetProcAddress(CodeAnalyst, "CAJIT_LogJITCode");
-
-					CodeAnalystInitialize();
-				}
-			#endif
 		}
 	}
 
@@ -909,7 +888,7 @@ namespace rr
 		::codegenMutex.unlock();
 	}
 
-	Routine *Nucleus::acquireRoutine(const wchar_t *name, bool runOptimizations)
+	Routine *Nucleus::acquireRoutine(const char *name, bool runOptimizations)
 	{
 		if(::builder->GetInsertBlock()->empty() || !::builder->GetInsertBlock()->back().isTerminator())
 		{
@@ -927,12 +906,14 @@ namespace rr
 
 		if(false)
 		{
-#if REACTOR_LLVM_VERSION < 7
-			std::string error;
-#else
-			std::error_code error;
-#endif
-			llvm::raw_fd_ostream file("llvm-dump-unopt.txt", error);
+			#if REACTOR_LLVM_VERSION < 7
+				std::string error;
+				llvm::raw_fd_ostream file((std::string(name) + "-llvm-dump-unopt.txt").c_str(), error);
+			#else
+				std::error_code error;
+				llvm::raw_fd_ostream file(std::string(name) + "-llvm-dump-unopt.txt", error);
+			#endif
+
 			::module->print(file, 0);
 		}
 
@@ -943,23 +924,18 @@ namespace rr
 
 		if(false)
 		{
-#if REACTOR_LLVM_VERSION < 7
-			std::string error;
-#else
-			std::error_code error;
-#endif
-			llvm::raw_fd_ostream file("llvm-dump-opt.txt", error);
+			#if REACTOR_LLVM_VERSION < 7
+				std::string error;
+				llvm::raw_fd_ostream file((std::string(name) + "-llvm-dump-opt.txt").c_str(), error);
+			#else
+				std::error_code error;
+				llvm::raw_fd_ostream file(std::string(name) + "-llvm-dump-opt.txt", error);
+			#endif
+
 			::module->print(file, 0);
 		}
 
 		LLVMRoutine *routine = ::reactorJIT->acquireRoutine(::function);
-
-#if defined(_WIN32) && REACTOR_LLVM_VERSION < 7
-		if(CodeAnalystLogJITCode)
-		{
-			CodeAnalystLogJITCode(routine->getEntry(), routine->getCodeSize(), name);
-		}
-#endif
 
 		return routine;
 	}
@@ -6086,6 +6062,39 @@ namespace rr
 		return T(llvm::VectorType::get(T(UInt::getType()), 4));
 	}
 
+	Half::Half(RValue<Float> cast)
+	{
+		UInt fp32i = As<UInt>(cast);
+		UInt abs = fp32i & 0x7FFFFFFF;
+		UShort fp16i((fp32i & 0x80000000) >> 16); // sign
+
+		If(abs > 0x47FFEFFF) // Infinity
+		{
+			fp16i |= UShort(0x7FFF);
+		}
+		Else
+		{
+			If(abs < 0x38800000) // Denormal
+			{
+				Int mantissa = (abs & 0x007FFFFF) | 0x00800000;
+				Int e = 113 - (abs >> 23);
+				abs = IfThenElse(e < 24, mantissa >> e, Int(0));
+				fp16i |= UShort((abs + 0x00000FFF + ((abs >> 13) & 1)) >> 13);
+			}
+			Else
+			{
+				fp16i |= UShort((abs + 0xC8000000 + 0x00000FFF + ((abs >> 13) & 1)) >> 13);
+			}
+		}
+
+		storeValue(fp16i.loadValue());
+	}
+
+	Type *Half::getType()
+	{
+		return T(llvm::Type::getInt16Ty(*::context));
+	}
+
 	Float::Float(RValue<Int> cast)
 	{
 		Value *integer = Nucleus::createSIToFP(cast.value, Float::getType());
@@ -6099,6 +6108,36 @@ namespace rr
 		                       As<Float>((As<Int>(cast) >> 31) & As<Int>(Float(0x80000000u)));
 
 		storeValue(result.value);
+	}
+
+	Float::Float(RValue<Half> cast)
+	{
+		Int fp16i(As<UShort>(cast));
+
+		Int s = (fp16i >> 15) & 0x00000001;
+		Int e = (fp16i >> 10) & 0x0000001F;
+		Int m = fp16i & 0x000003FF;
+
+		UInt fp32i(s << 31);
+		If(e == 0)
+		{
+			If(m != 0)
+			{
+				While((m & 0x00000400) == 0)
+				{
+					m <<= 1;
+					e -= 1;
+				}
+
+				fp32i |= As<UInt>(((e + (127 - 15) + 1) << 23) | ((m & ~0x00000400) << 13));
+			}
+		}
+		Else
+		{
+			fp32i |= As<UInt>(((e + (127 - 15)) << 23) | (m << 13));
+		}
+
+		storeValue(As<Float>(fp32i).value);
 	}
 
 	Float::Float(float x)

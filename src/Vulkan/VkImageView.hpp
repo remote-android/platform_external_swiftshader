@@ -31,10 +31,13 @@ public:
 
 	static size_t ComputeRequiredAllocationSize(const VkImageViewCreateInfo* pCreateInfo);
 
-	void clear(const VkClearValue& clearValues, const VkRect2D& renderArea);
+	void clear(const VkClearValue& clearValues, const VkImageAspectFlags aspectMask, const VkRect2D& renderArea);
+	void clear(const VkClearValue& clearValue, const VkImageAspectFlags aspectMask, const VkClearRect& renderArea);
 
 private:
-	VkImage                    image = VK_NULL_HANDLE;
+	bool                       imageTypesMatch(VkImageType imageType) const;
+
+	Image*                     image = nullptr;
 	VkImageViewType            viewType = VK_IMAGE_VIEW_TYPE_2D;
 	VkFormat                   format = VK_FORMAT_UNDEFINED;
 	VkComponentMapping         components = {};

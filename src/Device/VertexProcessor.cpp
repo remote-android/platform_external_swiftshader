@@ -412,7 +412,7 @@ namespace sw
 			state.input[i].type = context->input[i].type;
 			state.input[i].count = context->input[i].count;
 			state.input[i].normalized = context->input[i].normalized;
-			state.input[i].attribType = context->vertexShader ? context->vertexShader->getAttribType(i) : VertexShader::ATTRIBTYPE_FLOAT;
+			state.input[i].attribType = context->vertexShader ? context->vertexShader->getAttribType(i) : SpirvShader::ATTRIBTYPE_FLOAT;
 		}
 
 		for(unsigned int i = 0; i < VERTEX_TEXTURE_IMAGE_UNITS; i++)
@@ -447,7 +447,7 @@ namespace sw
 		{
 			VertexRoutine *generator = new VertexProgram(state, context->vertexShader);
 			generator->generate();
-			routine = (*generator)(L"VertexRoutine_%0.8X", state.shaderID);
+			routine = (*generator)("VertexRoutine_%0.8X", state.shaderID);
 			delete generator;
 
 			routineCache->add(state, routine);

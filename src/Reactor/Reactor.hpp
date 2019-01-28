@@ -20,7 +20,7 @@
 
 #include <cassert>
 #include <cstddef>
-#include <cwchar>
+#include <cstdio>
 #undef Bool
 
 namespace rr
@@ -49,6 +49,7 @@ namespace rr
 	class Int4;
 	class UInt4;
 	class Long;
+	class Half;
 	class Float;
 	class Float2;
 	class Float4;
@@ -1923,11 +1924,20 @@ namespace rr
 	RValue<UInt4> Min(RValue<UInt4> x, RValue<UInt4> y);
 //	RValue<UInt4> RoundInt(RValue<Float4> cast);
 
+	class Half : public LValue<Half>
+	{
+	public:
+		explicit Half(RValue<Float> cast);
+
+		static Type *getType();
+	};
+
 	class Float : public LValue<Float>
 	{
 	public:
 		explicit Float(RValue<Int> cast);
 		explicit Float(RValue<UInt> cast);
+		explicit Float(RValue<Half> cast);
 
 		Float() = default;
 		Float(float x);
@@ -2247,7 +2257,7 @@ namespace rr
 			return Argument<typename ArgI<index, Arguments...>::Type>(arg);
 		}
 
-		Routine *operator()(const wchar_t *name, ...);
+		Routine *operator()(const char *name, ...);
 
 	protected:
 		Nucleus *core;
@@ -2747,13 +2757,13 @@ namespace rr
 	}
 
 	template<typename Return, typename... Arguments>
-	Routine *Function<Return(Arguments...)>::operator()(const wchar_t *name, ...)
+	Routine *Function<Return(Arguments...)>::operator()(const char *name, ...)
 	{
-		wchar_t fullName[1024 + 1];
+		char fullName[1024 + 1];
 
 		va_list vararg;
 		va_start(vararg, name);
-		vswprintf(fullName, 1024, name, vararg);
+		vsnprintf(fullName, 1024, name, vararg);
 		va_end(vararg);
 
 		return core->acquireRoutine(fullName, true);

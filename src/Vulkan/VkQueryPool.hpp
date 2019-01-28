@@ -12,27 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "VkShaderModule.hpp"
+#ifndef VK_QUERY_POOL_HPP_
+#define VK_QUERY_POOL_HPP_
 
-#include <cstring>
+#include "VkObject.hpp"
 
 namespace vk
 {
 
-ShaderModule::ShaderModule(const VkShaderModuleCreateInfo* pCreateInfo, void* mem) : code(reinterpret_cast<uint32_t*>(mem))
+class QueryPool : public Object<QueryPool, VkQueryPool>
 {
-	memcpy(code, pCreateInfo->pCode, pCreateInfo->codeSize);
-	wordCount = static_cast<uint32_t>(pCreateInfo->codeSize / sizeof(uint32_t));
-}
+public:
+	QueryPool(const VkQueryPoolCreateInfo* pCreateInfo, void* mem);
+	~QueryPool() = delete;
 
-void ShaderModule::destroy(const VkAllocationCallbacks* pAllocator)
-{
-	vk::deallocate(code, pAllocator);
-}
+	static size_t ComputeRequiredAllocationSize(const VkQueryPoolCreateInfo* pCreateInfo);
 
-size_t ShaderModule::ComputeRequiredAllocationSize(const VkShaderModuleCreateInfo* pCreateInfo)
+	void getResults(uint32_t pFirstQuery, uint32_t pQueryCount, size_t pDataSize,
+		            void* pData, VkDeviceSize pStride, VkQueryResultFlags pFlags) const;
+
+private:
+	uint32_t queryCount;
+};
+
+static inline QueryPool* Cast(VkQueryPool object)
 {
-	return pCreateInfo->codeSize;
+	return reinterpret_cast<QueryPool*>(object);
 }
 
 } // namespace vk
+
+#endif // VK_QUERY_POOL_HPP_
