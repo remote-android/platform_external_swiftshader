@@ -14,6 +14,7 @@
 
 #include "VkCommandBuffer.hpp"
 #include "VkBuffer.hpp"
+#include "VkEvent.hpp"
 #include "VkFramebuffer.hpp"
 #include "VkImage.hpp"
 #include "VkPipeline.hpp"
@@ -140,7 +141,8 @@ struct VertexBufferBind : public CommandBuffer::Command
 
 struct Draw : public CommandBuffer::Command
 {
-	Draw(uint32_t pVertexCount) : vertexCount(pVertexCount)
+	Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
+		: vertexCount(vertexCount), instanceCount(instanceCount), firstVertex(firstVertex), firstInstance(firstInstance)
 	{
 	}
 
@@ -154,7 +156,7 @@ struct Draw : public CommandBuffer::Command
 		{
 			const auto& vertexInput = executionState.vertexInputBindings[i];
 			Buffer* buffer = Cast(vertexInput.buffer);
-			context.input[i].buffer = buffer ? buffer->getOffsetPointer(vertexInput.offset) : nullptr;
+			context.input[i].buffer = buffer ? buffer->getOffsetPointer(vertexInput.offset + context.input[i].stride * firstVertex) : nullptr;
 		}
 
 		executionState.renderer->setContext(context);
@@ -162,10 +164,19 @@ struct Draw : public CommandBuffer::Command
 		executionState.renderer->setViewport(pipeline->getViewport());
 		executionState.renderer->setBlendConstant(pipeline->getBlendConstants());
 
-		executionState.renderer->draw(context.drawType, 0, pipeline->computePrimitiveCount(vertexCount));
+		const uint32_t primitiveCount = pipeline->computePrimitiveCount(vertexCount);
+		const uint32_t lastInstance = firstInstance + instanceCount - 1;
+		for(uint32_t instance = firstInstance; instance <= lastInstance; instance++)
+		{
+			executionState.renderer->setInstanceID(instance);
+			executionState.renderer->draw(context.drawType, 0, primitiveCount);
+		}
 	}
 
 	uint32_t vertexCount;
+	uint32_t instanceCount;
+	uint32_t firstVertex;
+	uint32_t firstInstance;
 };
 
 struct ImageToImageCopy : public CommandBuffer::Command
@@ -238,6 +249,44 @@ private:
 	VkBuffer srcBuffer;
 	VkImage dstImage;
 	const VkBufferImageCopy region;
+};
+
+struct FillBuffer : public CommandBuffer::Command
+{
+	FillBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize size, uint32_t data) :
+		dstBuffer(dstBuffer), dstOffset(dstOffset), size(size), data(data)
+	{
+	}
+
+	void play(CommandBuffer::ExecutionState& executionState)
+	{
+		Cast(dstBuffer)->fill(dstOffset, size, data);
+	}
+
+private:
+	VkBuffer dstBuffer;
+	VkDeviceSize dstOffset;
+	VkDeviceSize size;
+	uint32_t data;
+};
+
+struct UpdateBuffer : public CommandBuffer::Command
+{
+	UpdateBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize dataSize, const void* pData) :
+		dstBuffer(dstBuffer), dstOffset(dstOffset), dataSize(dataSize), pData(pData)
+	{
+	}
+
+	void play(CommandBuffer::ExecutionState& executionState)
+	{
+		Cast(dstBuffer)->update(dstOffset, dataSize, pData);
+	}
+
+private:
+	VkBuffer dstBuffer;
+	VkDeviceSize dstOffset;
+	VkDeviceSize dataSize;
+	const void* pData;
 };
 
 struct ClearColorImage : public CommandBuffer::Command
@@ -331,6 +380,38 @@ struct PipelineBarrier : public CommandBuffer::Command
 	}
 
 private:
+};
+
+struct SignalEvent : public CommandBuffer::Command
+{
+	SignalEvent(VkEvent ev, VkPipelineStageFlags stageMask) : ev(ev), stageMask(stageMask)
+	{
+	}
+
+	void play(CommandBuffer::ExecutionState& executionState)
+	{
+		Cast(ev)->signal();
+	}
+
+private:
+	VkEvent ev;
+	VkPipelineStageFlags stageMask; // FIXME(b/117835459) : We currently ignore the flags and signal the event at the last stage
+};
+
+struct ResetEvent : public CommandBuffer::Command
+{
+	ResetEvent(VkEvent ev, VkPipelineStageFlags stageMask) : ev(ev), stageMask(stageMask)
+	{
+	}
+
+	void play(CommandBuffer::ExecutionState& executionState)
+	{
+		Cast(ev)->reset();
+	}
+
+private:
+	VkEvent ev;
+	VkPipelineStageFlags stageMask; // FIXME(b/117835459) : We currently ignore the flags and reset the event at the last stage
 };
 
 CommandBuffer::CommandBuffer(VkCommandBufferLevel pLevel) : level(pLevel)
@@ -667,12 +748,16 @@ void CommandBuffer::copyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLa
 
 void CommandBuffer::updateBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize dataSize, const void* pData)
 {
-	UNIMPLEMENTED();
+	ASSERT(state == RECORDING);
+
+	addCommand<UpdateBuffer>(dstBuffer, dstOffset, dataSize, pData);
 }
 
 void CommandBuffer::fillBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize size, uint32_t data)
 {
-	UNIMPLEMENTED();
+	ASSERT(state == RECORDING);
+
+	addCommand<FillBuffer>(dstBuffer, dstOffset, size, data);
 }
 
 void CommandBuffer::clearColorImage(VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor,
@@ -719,12 +804,16 @@ void CommandBuffer::resolveImage(VkImage srcImage, VkImageLayout srcImageLayout,
 
 void CommandBuffer::setEvent(VkEvent event, VkPipelineStageFlags stageMask)
 {
-	UNIMPLEMENTED();
+	ASSERT(state == RECORDING);
+
+	addCommand<SignalEvent>(event, stageMask);
 }
 
 void CommandBuffer::resetEvent(VkEvent event, VkPipelineStageFlags stageMask)
 {
-	UNIMPLEMENTED();
+	ASSERT(state == RECORDING);
+
+	addCommand<ResetEvent>(event, stageMask);
 }
 
 void CommandBuffer::waitEvents(uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask,
@@ -737,12 +826,7 @@ void CommandBuffer::waitEvents(uint32_t eventCount, const VkEvent* pEvents, VkPi
 
 void CommandBuffer::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
-	if(instanceCount > 1 || firstVertex != 0 || firstInstance != 0)
-	{
-		UNIMPLEMENTED();
-	}
-
-	addCommand<Draw>(vertexCount);
+	addCommand<Draw>(vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
 void CommandBuffer::drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)

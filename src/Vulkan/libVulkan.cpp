@@ -18,6 +18,8 @@
 #include "VkCommandPool.hpp"
 #include "VkConfig.h"
 #include "VkDebug.hpp"
+#include "VkDescriptorPool.hpp"
+#include "VkDescriptorSetLayout.hpp"
 #include "VkDestroy.h"
 #include "VkDevice.hpp"
 #include "VkDeviceMemory.hpp"
@@ -288,6 +290,17 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, c
 				}
 			}
 			break;
+		case VK_STRUCTURE_TYPE_DEVICE_GROUP_DEVICE_CREATE_INFO:
+			{
+				const VkDeviceGroupDeviceCreateInfo* groupDeviceCreateInfo = reinterpret_cast<const VkDeviceGroupDeviceCreateInfo*>(extensionCreateInfo);
+
+				if((groupDeviceCreateInfo->physicalDeviceCount != 1) ||
+				   (groupDeviceCreateInfo->pPhysicalDevices[0] != physicalDevice))
+				{
+					return VK_ERROR_FEATURE_NOT_PRESENT;
+				}
+			}
+			break;
 		default:
 			// "the [driver] must skip over, without processing (other than reading the sType and pNext members) any structures in the chain with sType values not defined by [supported extenions]"
 			UNIMPLEMENTED();   // TODO(b/119321052): UNIMPLEMENTED() should be used only for features that must still be implemented. Use a more informational macro here.
@@ -456,15 +469,19 @@ VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount
 
 VKAPI_ATTR VkResult VKAPI_CALL vkQueueWaitIdle(VkQueue queue)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
+	TRACE("(VkQueue queue = 0x%X)", queue);
+
+	vk::Cast(queue)->waitIdle();
+
 	return VK_SUCCESS;
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL vkDeviceWaitIdle(VkDevice device)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
+	TRACE("(VkDevice device = 0x%X)", device);
+
+	vk::Cast(device)->waitIdle();
+
 	return VK_SUCCESS;
 }
 
@@ -930,10 +947,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipe
 	TRACE("(VkDevice device = 0x%X, VkPipelineCache pipelineCache = 0x%X, uint32_t createInfoCount = %d, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator = 0x%X, VkPipeline* pPipelines = 0x%X)",
 		    device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 
-	if(pipelineCache != VK_NULL_HANDLE)
-	{
-		UNIMPLEMENTED();
-	}
+	// TODO (b/123588002): Optimize based on pipelineCache.
 
 	VkResult errorResult = VK_SUCCESS;
 	for(uint32_t i = 0; i < createInfoCount; i++)
@@ -966,10 +980,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipel
 	TRACE("(VkDevice device = 0x%X, VkPipelineCache pipelineCache = 0x%X, uint32_t createInfoCount = %d, const VkComputePipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator = 0x%X, VkPipeline* pPipelines = 0x%X)",
 		device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 
-	if(pipelineCache != VK_NULL_HANDLE)
-	{
-		UNIMPLEMENTED();
-	}
+	// TODO (b/123588002): Optimize based on pipelineCache.
 
 	VkResult errorResult = VK_SUCCESS;
 	for(uint32_t i = 0; i < createInfoCount; i++)
@@ -1045,48 +1056,80 @@ VKAPI_ATTR void VKAPI_CALL vkDestroySampler(VkDevice device, VkSampler sampler, 
 
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorSetLayout* pSetLayout)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
-	return VK_SUCCESS;
+	TRACE("(VkDevice device = 0x%X, const VkDescriptorSetLayoutCreateInfo* pCreateInfo = 0x%X, const VkAllocationCallbacks* pAllocator = 0x%X, VkDescriptorSetLayout* pSetLayout = 0x%X)",
+	      device, pCreateInfo, pAllocator, pSetLayout);
+
+	if(pCreateInfo->pNext)
+	{
+		UNIMPLEMENTED();
+	}
+
+	return vk::DescriptorSetLayout::Create(pAllocator, pCreateInfo, pSetLayout);
 }
 
 VKAPI_ATTR void VKAPI_CALL vkDestroyDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout, const VkAllocationCallbacks* pAllocator)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
+	TRACE("(VkDevice device = 0x%X, VkDescriptorSetLayout descriptorSetLayout = 0x%X, const VkAllocationCallbacks* pAllocator = 0x%X)",
+	      device, descriptorSetLayout, pAllocator);
+
+	vk::destroy(descriptorSetLayout, pAllocator);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateDescriptorPool(VkDevice device, const VkDescriptorPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorPool* pDescriptorPool)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
-	return VK_SUCCESS;
+	TRACE("(VkDevice device = 0x%X, const VkDescriptorPoolCreateInfo* pCreateInfo = 0x%X, const VkAllocationCallbacks* pAllocator = 0x%X, VkDescriptorPool* pDescriptorPool = 0x%X)",
+	      device, pCreateInfo, pAllocator, pDescriptorPool);
+
+	if(pCreateInfo->pNext)
+	{
+		UNIMPLEMENTED();
+	}
+
+	return vk::DescriptorPool::Create(pAllocator, pCreateInfo, pDescriptorPool);
 }
 
 VKAPI_ATTR void VKAPI_CALL vkDestroyDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, const VkAllocationCallbacks* pAllocator)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
+	TRACE("(VkDevice device = 0x%X, VkDescriptorPool descriptorPool = 0x%X, const VkAllocationCallbacks* pAllocator = 0x%X)",
+	      device, descriptorPool, pAllocator);
+
+	vk::destroy(descriptorPool, pAllocator);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL vkResetDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
-	return VK_SUCCESS;
+	TRACE("(VkDevice device = 0x%X, VkDescriptorPool descriptorPool = 0x%X, VkDescriptorPoolResetFlags flags = 0x%X)",
+		device, descriptorPool, flags);
+
+	if(flags)
+	{
+		UNIMPLEMENTED();
+	}
+
+	return vk::Cast(descriptorPool)->reset();
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL vkAllocateDescriptorSets(VkDevice device, const VkDescriptorSetAllocateInfo* pAllocateInfo, VkDescriptorSet* pDescriptorSets)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
-	return VK_SUCCESS;
+	TRACE("(VkDevice device = 0x%X, const VkDescriptorSetAllocateInfo* pAllocateInfo = 0x%X, VkDescriptorSet* pDescriptorSets = 0x%X)",
+		device, pAllocateInfo, pDescriptorSets);
+
+	if(pAllocateInfo->pNext)
+	{
+		UNIMPLEMENTED();
+	}
+
+	return vk::Cast(pAllocateInfo->descriptorPool)->allocateSets(
+		pAllocateInfo->descriptorSetCount, pAllocateInfo->pSetLayouts, pDescriptorSets);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descriptorPool, uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
+	TRACE("(VkDevice device = 0x%X, VkDescriptorPool descriptorPool = 0x%X, uint32_t descriptorSetCount = %d, const VkDescriptorSet* pDescriptorSets = 0x%X)",
+		device, descriptorPool, descriptorSetCount, pDescriptorSets);
+
+	vk::Cast(descriptorPool)->freeSets(descriptorSetCount, pDescriptorSets);
+
 	return VK_SUCCESS;
 }
 
@@ -1166,9 +1209,10 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyCommandPool(VkDevice device, VkCommandPool c
 
 VKAPI_ATTR VkResult VKAPI_CALL vkResetCommandPool(VkDevice device, VkCommandPool commandPool, VkCommandPoolResetFlags flags)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
-	return VK_SUCCESS;
+	TRACE("(VkDevice device = 0x%X, VkCommandPool commandPool = 0x%X, VkCommandPoolResetFlags flags = %d )",
+		device, commandPool, flags);
+
+	return vk::Cast(commandPool)->reset(flags);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers)
@@ -1879,8 +1923,10 @@ VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceSparseImageFormatProperties2(VkPhy
 
 VKAPI_ATTR void VKAPI_CALL vkTrimCommandPool(VkDevice device, VkCommandPool commandPool, VkCommandPoolTrimFlags flags)
 {
-	TRACE("()");
-	UNIMPLEMENTED();
+	TRACE("(VkDevice device = 0x%X, VkCommandPool commandPool = 0x%X, VkCommandPoolTrimFlags flags = %d)",
+	      device, commandPool, flags);
+
+	vk::Cast(commandPool)->trim(flags);
 }
 
 VKAPI_ATTR void VKAPI_CALL vkGetDeviceQueue2(VkDevice device, const VkDeviceQueueInfo2* pQueueInfo, VkQueue* pQueue)

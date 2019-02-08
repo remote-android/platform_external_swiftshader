@@ -60,7 +60,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)include;$(SolutionDir)third_party\SPIRV-Headers\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
@@ -82,7 +82,7 @@ copy "$(OutDir)vk_swiftshader.dll" "$(SolutionDir)out\$(Configuration)_$(Platfor
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)include;$(SolutionDir)third_party\SPIRV-Headers\include;$(SolutionDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;DEBUGGER_WAIT_DIALOG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
@@ -104,6 +104,8 @@ copy "$(OutDir)vk_swiftshader.dll" "$(SolutionDir)out\$(Configuration)_$(Platfor
     <ClCompile Include="VkCommandBuffer.cpp" />
     <ClCompile Include="VkCommandPool.cpp" />
     <ClCompile Include="VkDebug.cpp" />
+    <ClCompile Include="VkDescriptorPool.cpp" />
+    <ClCompile Include="VkDescriptorSetLayout.cpp" />
     <ClCompile Include="VkDevice.cpp" />
     <ClCompile Include="VkDeviceMemory.cpp" />
     <ClCompile Include="VkFramebuffer.cpp" />
@@ -198,6 +200,8 @@ copy "$(OutDir)vk_swiftshader.dll" "$(SolutionDir)out\$(Configuration)_$(Platfor
     <ClInclude Include="VkCommandPool.hpp" />
     <ClInclude Include="VkConfig.h" />
     <ClInclude Include="VkDebug.hpp" />
+    <ClInclude Include="VkDescriptorPool.hpp" />
+    <ClInclude Include="VkDescriptorSetLayout.hpp" />
     <ClInclude Include="VkDestroy.h" />
     <ClInclude Include="VkDevice.hpp" />
     <ClInclude Include="VkDeviceMemory.hpp" />

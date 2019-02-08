@@ -2,6 +2,16 @@ cmake_minimum_required(VERSION 2.8)
 
 project(SwiftShader C CXX)
 
+# On Windows we use custom solution and project files, except for certain third-
+# party projects which use CMake-generated ones. They are manually (re)generated
+# and made path relative using build/cmake.sh, so they can be checked into the
+# repository. Therefore they should not be auto-regenerated and left using
+# absolute paths by CMake's ZERO_CHECK.
+if(WIN32)
+    # Disable automatically regenerating project files on CMakeLists.txt changes.
+    set(CMAKE_SUPPRESS_REGENERATION true)
+endif()
+
 ###########################################################
 # Detect system
 ###########################################################
@@ -97,7 +107,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # Initialize submodules
 ###########################################################
 
-if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/googletest)
+if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/googletest/.git)
     message(WARNING "
   third_party/googletest submodule missing.
   Running 'git submodule update --init' to download it:
@@ -197,6 +207,7 @@ endmacro()
 if(MSVC)
     set_cpp_flag("/MP")
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+    add_definitions(-D_SBCS)  # Single Byte Character Set (ASCII)
 else()
     set_cpp_flag("--std=c++11")
     set_cpp_flag("-Wall")
@@ -205,7 +216,8 @@ else()
     set_cpp_flag("-Werror=missing-braces")
     set_cpp_flag("-fno-exceptions")
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
+       CLANG_VERSION_STRING VERSION_GREATER_EQUAL 5)
         set_cpp_flag("-Werror=unused-lambda-capture")
     endif()
 
@@ -248,7 +260,10 @@ else()
     # Use -g3 to have even more debug info
     set_cpp_flag("-g -g3" DEBUG)
     set_cpp_flag("-g -g3" RELWITHDEBINFO)
-    set_cpp_flag("-s" RELEASE)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # Treated as an unused argument with clang
+        set_cpp_flag("-s" RELEASE)
+    endif()
 
     # For distribution it is more important to be slim than super optimized
     set_cpp_flag("-Os" RELEASE)
@@ -1739,6 +1754,11 @@ set_target_properties(llvm PROPERTIES
     FOLDER "LLVM"
 )
 
+# Add required libraries for LLVM
+if(LINUX)
+    target_link_libraries(llvm dl)
+endif(LINUX)
+
 ###########################################################
 # Subzero
 ###########################################################
@@ -2171,6 +2191,12 @@ if(BUILD_GLES_CM)
 endif()
 
 if(BUILD_VULKAN)
+    # This variable is also used by SPIRV-Tools to locate SPIRV-Headers
+    set(SPIRV-Headers_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/SPIRV-Headers")
+    list(APPEND VULKAN_INCLUDE_DIR "${SPIRV-Headers_SOURCE_DIR}/include")
+
+    add_subdirectory(third_party/SPIRV-Tools)
+
     add_library(libvk_swiftshader SHARED ${VULKAN_LIST})
     set_target_properties(libvk_swiftshader PROPERTIES
         INCLUDE_DIRECTORIES "${VULKAN_INCLUDE_DIR}"
@@ -2179,7 +2205,7 @@ if(BUILD_VULKAN)
         PREFIX ""
     )
     set_shared_library_export_map(libvk_swiftshader ${SOURCE_DIR}/Vulkan)
-    target_link_libraries(libvk_swiftshader ${Reactor} ${OS_LIBS})
+    target_link_libraries(libvk_swiftshader ${Reactor} ${OS_LIBS} SPIRV-Tools SPIRV-Tools-opt)
     add_custom_command(
         TARGET libvk_swiftshader
         POST_BUILD
