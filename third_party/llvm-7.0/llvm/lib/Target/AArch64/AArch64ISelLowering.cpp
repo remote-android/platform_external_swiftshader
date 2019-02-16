@@ -10999,6 +10999,7 @@ SDValue AArch64TargetLowering::PerformDAGCombine(SDNode *N,
     default:
       break;
     }
+    break;
   case ISD::GlobalAddress:
     return performGlobalAddressCombine(N, DAG, Subtarget, getTargetMachine());
   }

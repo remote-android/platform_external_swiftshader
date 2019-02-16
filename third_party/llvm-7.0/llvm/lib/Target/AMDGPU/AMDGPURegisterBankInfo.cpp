@@ -313,7 +313,7 @@ AMDGPURegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   case AMDGPU::G_SHL:
     if (isSALUMapping(MI))
       return getDefaultMappingSOP(MI);
-    // Fall-through
+    LLVM_FALLTHROUGH;
 
   case AMDGPU::G_FADD:
   case AMDGPU::G_FPTOSI:

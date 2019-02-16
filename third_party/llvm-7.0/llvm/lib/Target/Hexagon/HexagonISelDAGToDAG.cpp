@@ -1550,6 +1550,7 @@ bool HexagonDAGToDAGISel::keepsLowBits(const SDValue &Val, unsigned NumBits,
         return true;
       }
     }
+    break;
   }
   default:
     break;

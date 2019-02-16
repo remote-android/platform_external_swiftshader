@@ -1569,6 +1569,7 @@ bool HexagonPacketizerList::isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) {
             if (GlueAllocframeStore)
               continue;
           }
+          break;
         default:
           break;
       }
