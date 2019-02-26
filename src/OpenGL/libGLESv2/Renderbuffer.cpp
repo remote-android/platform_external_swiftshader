@@ -22,6 +22,8 @@
 #include "Texture.h"
 #include "utilities.h"
 
+#include "compiler/Compiler.h"
+
 namespace es2
 {
 RenderbufferInterface::RenderbufferInterface()
@@ -78,7 +80,7 @@ RenderbufferTexture2D::RenderbufferTexture2D(Texture2D *texture, GLint level) : 
 
 RenderbufferTexture2D::~RenderbufferTexture2D()
 {
-	mTexture2D = nullptr;
+	mTexture2D = NULL;
 }
 
 // Textures need to maintain their own reference count for references via
@@ -441,7 +443,7 @@ void Renderbuffer::setLevel(GLint level)
 
 void Renderbuffer::setStorage(RenderbufferStorage *newStorage)
 {
-	ASSERT(newStorage);
+	ASSERT(newStorage != NULL);
 
 	delete mInstance;
 	mInstance = newStorage;

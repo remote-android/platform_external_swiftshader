@@ -531,7 +531,7 @@ namespace sw
 			}
 		}
 
-		return function("FrameBuffer");
+		return function(L"FrameBuffer");
 	}
 
 	void FrameBuffer::blend(const BlitState &state, const Pointer<Byte> &d, const Pointer<Byte> &s, const Pointer<Byte> &c)

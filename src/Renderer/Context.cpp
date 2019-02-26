@@ -274,7 +274,6 @@ namespace sw
 		blendOperationStateAlpha = BLENDOP_ADD;
 
 		cullMode = CULL_CLOCKWISE;
-		frontFacingCCW = true;
 		alphaReference = 0.0f;
 
 		depthBias = 0.0f;

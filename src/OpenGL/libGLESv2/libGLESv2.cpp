@@ -42,7 +42,7 @@ namespace es2
 
 static bool validImageSize(GLint level, GLsizei width, GLsizei height)
 {
-	if(level < 0 || level >= IMPLEMENTATION_MAX_TEXTURE_LEVELS || width < 0 || height < 0)
+	if(level < 0 || level >= es2::IMPLEMENTATION_MAX_TEXTURE_LEVELS || width < 0 || height < 0)
 	{
 		return false;
 	}
@@ -50,18 +50,11 @@ static bool validImageSize(GLint level, GLsizei width, GLsizei height)
 	return true;
 }
 
-}
-
-namespace gl
-{
-
-using namespace es2;
-
 void ActiveTexture(GLenum texture)
 {
 	TRACE("(GLenum texture = 0x%X)", texture);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -78,7 +71,7 @@ void AttachShader(GLuint program, GLuint shader)
 {
 	TRACE("(GLuint program = %d, GLuint shader = %d)", program, shader);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -134,7 +127,7 @@ void BeginQueryEXT(GLenum target, GLuint name)
 		return error(GL_INVALID_OPERATION);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -151,7 +144,7 @@ void BindAttribLocation(GLuint program, GLuint index, const GLchar* name)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -182,10 +175,12 @@ void BindBuffer(GLenum target, GLuint buffer)
 {
 	TRACE("(GLenum target = 0x%X, GLuint buffer = %d)", target, buffer);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
+		GLint clientVersion = egl::getClientVersion();
+
 		switch(target)
 		{
 		case GL_ARRAY_BUFFER:
@@ -195,23 +190,47 @@ void BindBuffer(GLenum target, GLuint buffer)
 			context->bindElementArrayBuffer(buffer);
 			return;
 		case GL_COPY_READ_BUFFER:
-			context->bindCopyReadBuffer(buffer);
-			return;
+			if(clientVersion >= 3)
+			{
+				context->bindCopyReadBuffer(buffer);
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_COPY_WRITE_BUFFER:
-			context->bindCopyWriteBuffer(buffer);
-			return;
+			if(clientVersion >= 3)
+			{
+				context->bindCopyWriteBuffer(buffer);
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_PIXEL_PACK_BUFFER:
-			context->bindPixelPackBuffer(buffer);
-			return;
+			if(clientVersion >= 3)
+			{
+				context->bindPixelPackBuffer(buffer);
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_PIXEL_UNPACK_BUFFER:
-			context->bindPixelUnpackBuffer(buffer);
-			return;
+			if(clientVersion >= 3)
+			{
+				context->bindPixelUnpackBuffer(buffer);
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TRANSFORM_FEEDBACK_BUFFER:
-			context->bindTransformFeedbackBuffer(buffer);
-			return;
+			if(clientVersion >= 3)
+			{
+				context->bindTransformFeedbackBuffer(buffer);
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_UNIFORM_BUFFER:
-			context->bindGenericUniformBuffer(buffer);
-			return;
+			if(clientVersion >= 3)
+			{
+				context->bindGenericUniformBuffer(buffer);
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		default:
 			return error(GL_INVALID_ENUM);
 		}
@@ -227,7 +246,7 @@ void BindFramebuffer(GLenum target, GLuint framebuffer)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -252,7 +271,7 @@ void BindRenderbuffer(GLenum target, GLuint renderbuffer)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -268,7 +287,7 @@ void BindTexture(GLenum target, GLuint texture)
 {
 	TRACE("(GLenum target = 0x%X, GLuint texture = %d)", target, texture);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -278,6 +297,8 @@ void BindTexture(GLenum target, GLuint texture)
 		{
 			return error(GL_INVALID_OPERATION);
 		}
+
+		GLint clientVersion = context->getClientVersion();
 
 		switch(target)
 		{
@@ -291,6 +312,10 @@ void BindTexture(GLenum target, GLuint texture)
 			context->bindTexture(TEXTURE_EXTERNAL, texture);
 			break;
 		case GL_TEXTURE_2D_ARRAY:
+			if(clientVersion < 3)
+			{
+				return error(GL_INVALID_ENUM);
+			}
 			context->bindTexture(TEXTURE_2D_ARRAY, texture);
 			break;
 		case GL_TEXTURE_3D:
@@ -310,12 +335,17 @@ void BlendColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
 	TRACE("(GLclampf red = %f, GLclampf green = %f, GLclampf blue = %f, GLclampf alpha = %f)",
 		red, green, blue, alpha);
 
-	auto context = es2::getContext();
+	es2::Context* context = es2::getContext();
 
 	if(context)
 	{
 		context->setBlendColor(es2::clamp01(red), es2::clamp01(green), es2::clamp01(blue), es2::clamp01(alpha));
 	}
+}
+
+void BlendEquation(GLenum mode)
+{
+	glBlendEquationSeparate(mode, mode);
 }
 
 void BlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha)
@@ -346,7 +376,7 @@ void BlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -354,15 +384,17 @@ void BlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha)
 	}
 }
 
-void BlendEquation(GLenum mode)
+void BlendFunc(GLenum sfactor, GLenum dfactor)
 {
-	BlendEquationSeparate(mode, mode);
+	glBlendFuncSeparate(sfactor, dfactor, sfactor, dfactor);
 }
 
 void BlendFuncSeparate(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha)
 {
 	TRACE("(GLenum srcRGB = 0x%X, GLenum dstRGB = 0x%X, GLenum srcAlpha = 0x%X, GLenum dstAlpha = 0x%X)",
 	      srcRGB, dstRGB, srcAlpha, dstAlpha);
+
+	GLint clientVersion = egl::getClientVersion();
 
 	switch(srcRGB)
 	{
@@ -404,6 +436,10 @@ void BlendFuncSeparate(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dst
 	case GL_ONE_MINUS_CONSTANT_ALPHA:
 		break;
 	case GL_SRC_ALPHA_SATURATE:
+		if(clientVersion < 3)
+		{
+			return error(GL_INVALID_ENUM);
+		}
 		break;
 	default:
 		return error(GL_INVALID_ENUM);
@@ -449,22 +485,21 @@ void BlendFuncSeparate(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dst
 	case GL_ONE_MINUS_CONSTANT_ALPHA:
 		break;
 	case GL_SRC_ALPHA_SATURATE:
+		if(clientVersion < 3)
+		{
+			return error(GL_INVALID_ENUM);
+		}
 		break;
 	default:
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
 		context->setBlendFactors(srcRGB, dstRGB, srcAlpha, dstAlpha);
 	}
-}
-
-void BlendFunc(GLenum sfactor, GLenum dfactor)
-{
-	BlendFuncSeparate(sfactor, dfactor, sfactor, dfactor);
 }
 
 void BufferData(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage)
@@ -479,6 +514,8 @@ void BufferData(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage
 		return error(GL_INVALID_VALUE);
 	}
 
+	GLint clientVersion = egl::getClientVersion();
+
 	switch(usage)
 	{
 	case GL_STREAM_DRAW:
@@ -491,12 +528,16 @@ void BufferData(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage
 	case GL_STATIC_COPY:
 	case GL_DYNAMIC_READ:
 	case GL_DYNAMIC_COPY:
+		if(clientVersion < 3)
+		{
+			return error(GL_INVALID_ENUM);
+		}
 		break;
 	default:
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -529,7 +570,7 @@ void BufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -569,7 +610,7 @@ GLenum CheckFramebufferStatus(GLenum target)
 		return error(GL_INVALID_ENUM, 0);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -603,7 +644,7 @@ void Clear(GLbitfield mask)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -616,7 +657,7 @@ void ClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
 	TRACE("(GLclampf red = %f, GLclampf green = %f, GLclampf blue = %f, GLclampf alpha = %f)",
 	      red, green, blue, alpha);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -628,7 +669,7 @@ void ClearDepthf(GLclampf depth)
 {
 	TRACE("(GLclampf depth = %f)", depth);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -640,7 +681,7 @@ void ClearStencil(GLint s)
 {
 	TRACE("(GLint s = %d)", s);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -653,11 +694,11 @@ void ColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha)
 	TRACE("(GLboolean red = %d, GLboolean green = %d, GLboolean blue = %d, GLboolean alpha = %d)",
 	      red, green, blue, alpha);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
-		context->setColorMask(red != GL_FALSE, green != GL_FALSE, blue != GL_FALSE, alpha != GL_FALSE);
+		context->setColorMask(red == GL_TRUE, green == GL_TRUE, blue == GL_TRUE, alpha == GL_TRUE);
 	}
 }
 
@@ -665,7 +706,7 @@ void CompileShader(GLuint shader)
 {
 	TRACE("(GLuint shader = %d)", shader);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -699,7 +740,7 @@ void CompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLs
 		return error(GL_INVALID_VALUE);
 	}
 
-	if(!IsCompressed(internalformat))
+	if(!IsCompressed(internalformat, egl::getClientVersion()))
 	{
 		return error(GL_INVALID_ENUM);
 	}
@@ -709,7 +750,7 @@ void CompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLs
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -809,17 +850,12 @@ void CompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yo
 		return error(GL_INVALID_VALUE);
 	}
 
-	if(!IsCompressed(format))
-	{
-		return error(GL_INVALID_ENUM);
-	}
-
 	if(imageSize != gl::ComputeCompressedSize(width, height, format))
 	{
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -839,7 +875,7 @@ void CompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yo
 		{
 			es2::Texture2D *texture = context->getTexture2D(target);
 
-			GLenum validationError = ValidateSubImageParams(true, false, target, level, xoffset, yoffset, width, height, format, GL_NONE, texture);
+			GLenum validationError = ValidateSubImageParams(true, false, target, level, xoffset, yoffset, width, height, format, GL_NONE, texture, context->getClientVersion());
 			if(validationError != GL_NO_ERROR)
 			{
 				return error(validationError);
@@ -851,7 +887,7 @@ void CompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yo
 		{
 			es2::TextureCubeMap *texture = context->getTextureCubeMap();
 
-			GLenum validationError = ValidateSubImageParams(true, false, target, level, xoffset, yoffset, width, height, format, GL_NONE, texture);
+			GLenum validationError = ValidateSubImageParams(true, false, target, level, xoffset, yoffset, width, height, format, GL_NONE, texture, context->getClientVersion());
 			if(validationError != GL_NO_ERROR)
 			{
 				return error(validationError);
@@ -879,7 +915,7 @@ void CopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, 
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -938,13 +974,6 @@ void CopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, 
 		// Determine the sized internal format.
 		if(gl::IsUnsizedInternalFormat(internalformat))
 		{
-			if(colorbufferFormat == GL_RGB10_A2)
-			{
-				// Not supported with unsized internalformat.
-				// https://www.khronos.org/members/login/bugzilla/show_bug.cgi?id=9807#c56
-				return error(GL_INVALID_OPERATION);
-			}
-
 			if(gl::GetBaseInternalFormat(colorbufferFormat) == internalformat)
 			{
 				internalformat = colorbufferFormat;
@@ -968,13 +997,9 @@ void CopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, 
 			{
 				internalformat = gl::GetSizedInternalFormat(internalformat, GL_HALF_FLOAT_OES);
 			}
-			else if(GetColorComponentType(colorbufferFormat) == GL_FLOAT && GetRedSize(colorbufferFormat) == 32)   // GL_EXT_color_buffer_float
-			{
-				internalformat = gl::GetSizedInternalFormat(internalformat, GL_FLOAT);
-			}
 			else
 			{
-				UNIMPLEMENTED("internalformat = %x, colorbufferFormat = %X", internalformat, colorbufferFormat);
+				UNIMPLEMENTED();
 
 				return error(GL_INVALID_OPERATION);
 			}
@@ -1037,7 +1062,7 @@ void CopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset,
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1067,7 +1092,7 @@ void CopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset,
 		}
 		else UNREACHABLE(target);
 
-		GLenum validationError = ValidateSubImageParams(false, true, target, level, xoffset, yoffset, width, height, GL_NONE, GL_NONE, texture);
+		GLenum validationError = ValidateSubImageParams(false, true, target, level, xoffset, yoffset, width, height, GL_NONE, GL_NONE, texture, context->getClientVersion());
 		if(validationError != GL_NO_ERROR)
 		{
 			return error(validationError);
@@ -1081,7 +1106,7 @@ GLuint CreateProgram(void)
 {
 	TRACE("()");
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1095,7 +1120,7 @@ GLuint CreateShader(GLenum type)
 {
 	TRACE("(GLenum type = 0x%X)", type);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1122,7 +1147,7 @@ void CullFace(GLenum mode)
 	case GL_BACK:
 	case GL_FRONT_AND_BACK:
 		{
-			auto context = es2::getContext();
+			es2::Context *context = es2::getContext();
 
 			if(context)
 			{
@@ -1144,7 +1169,7 @@ void DeleteBuffers(GLsizei n, const GLuint* buffers)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1164,7 +1189,7 @@ void DeleteFencesNV(GLsizei n, const GLuint* fences)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1184,13 +1209,13 @@ void DeleteFramebuffers(GLsizei n, const GLuint* framebuffers)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
 		for(int i = 0; i < n; i++)
 		{
-			if(framebuffers[i] != 0)   // Attempts to delete default framebuffer silently ignored.
+			if(framebuffers[i] != 0)
 			{
 				context->deleteFramebuffer(framebuffers[i]);
 			}
@@ -1207,7 +1232,7 @@ void DeleteProgram(GLuint program)
 		return;
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1236,7 +1261,7 @@ void DeleteQueriesEXT(GLsizei n, const GLuint *ids)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1256,7 +1281,7 @@ void DeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1276,7 +1301,7 @@ void DeleteShader(GLuint shader)
 		return;
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1305,13 +1330,13 @@ void DeleteTextures(GLsizei n, const GLuint* textures)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
 		for(int i = 0; i < n; i++)
 		{
-			if(textures[i] != 0)   // Attempts to delete default texture silently ignored.
+			if(textures[i] != 0)
 			{
 				context->deleteTexture(textures[i]);
 			}
@@ -1338,7 +1363,7 @@ void DepthFunc(GLenum func)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1350,7 +1375,7 @@ void DepthMask(GLboolean flag)
 {
 	TRACE("(GLboolean flag = %d)", flag);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1362,7 +1387,7 @@ void DepthRangef(GLclampf zNear, GLclampf zFar)
 {
 	TRACE("(GLclampf zNear = %f, GLclampf zFar = %f)", zNear, zFar);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1374,7 +1399,7 @@ void DetachShader(GLuint program, GLuint shader)
 {
 	TRACE("(GLuint program = %d, GLuint shader = %d)", program, shader);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1420,7 +1445,7 @@ void Disable(GLenum cap)
 {
 	TRACE("(GLenum cap = 0x%X)", cap);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1452,7 +1477,7 @@ void DisableVertexAttribArray(GLuint index)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1483,7 +1508,7 @@ void DrawArrays(GLenum mode, GLint first, GLsizei count)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1521,7 +1546,7 @@ void DrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1569,7 +1594,7 @@ void DrawArraysInstancedEXT(GLenum mode, GLint first, GLsizei count, GLsizei ins
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1617,7 +1642,7 @@ void DrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const voi
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1635,7 +1660,7 @@ void VertexAttribDivisorEXT(GLuint index, GLuint divisor)
 {
 	TRACE("(GLuint index = %d, GLuint divisor = %d)", index, divisor);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1672,7 +1697,7 @@ void DrawArraysInstancedANGLE(GLenum mode, GLint first, GLsizei count, GLsizei i
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1725,7 +1750,7 @@ void DrawElementsInstancedANGLE(GLenum mode, GLsizei count, GLenum type, const v
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1748,7 +1773,7 @@ void VertexAttribDivisorANGLE(GLuint index, GLuint divisor)
 {
 	TRACE("(GLuint index = %d, GLuint divisor = %d)", index, divisor);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1765,7 +1790,7 @@ void Enable(GLenum cap)
 {
 	TRACE("(GLenum cap = 0x%X)", cap);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1797,7 +1822,7 @@ void EnableVertexAttribArray(GLuint index)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1818,7 +1843,7 @@ void EndQueryEXT(GLenum target)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1830,7 +1855,7 @@ void FinishFenceNV(GLuint fence)
 {
 	TRACE("(GLuint fence = %d)", fence);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1849,7 +1874,7 @@ void Finish(void)
 {
 	TRACE("()");
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1861,7 +1886,7 @@ void Flush(void)
 {
 	TRACE("()");
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1880,7 +1905,7 @@ void FramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuff
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -1914,8 +1939,48 @@ void FramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuff
 			}
 		}
 
+		GLint clientVersion = context->getClientVersion();
+
 		switch(attachment)
 		{
+		case GL_COLOR_ATTACHMENT0:
+		case GL_COLOR_ATTACHMENT1:
+		case GL_COLOR_ATTACHMENT2:
+		case GL_COLOR_ATTACHMENT3:
+		case GL_COLOR_ATTACHMENT4:
+		case GL_COLOR_ATTACHMENT5:
+		case GL_COLOR_ATTACHMENT6:
+		case GL_COLOR_ATTACHMENT7:
+		case GL_COLOR_ATTACHMENT8:
+		case GL_COLOR_ATTACHMENT9:
+		case GL_COLOR_ATTACHMENT10:
+		case GL_COLOR_ATTACHMENT11:
+		case GL_COLOR_ATTACHMENT12:
+		case GL_COLOR_ATTACHMENT13:
+		case GL_COLOR_ATTACHMENT14:
+		case GL_COLOR_ATTACHMENT15:
+		case GL_COLOR_ATTACHMENT16:
+		case GL_COLOR_ATTACHMENT17:
+		case GL_COLOR_ATTACHMENT18:
+		case GL_COLOR_ATTACHMENT19:
+		case GL_COLOR_ATTACHMENT20:
+		case GL_COLOR_ATTACHMENT21:
+		case GL_COLOR_ATTACHMENT22:
+		case GL_COLOR_ATTACHMENT23:
+		case GL_COLOR_ATTACHMENT24:
+		case GL_COLOR_ATTACHMENT25:
+		case GL_COLOR_ATTACHMENT26:
+		case GL_COLOR_ATTACHMENT27:
+		case GL_COLOR_ATTACHMENT28:
+		case GL_COLOR_ATTACHMENT29:
+		case GL_COLOR_ATTACHMENT30:
+		case GL_COLOR_ATTACHMENT31:
+			if((attachment - GL_COLOR_ATTACHMENT0) >= MAX_COLOR_ATTACHMENTS)
+			{
+				return error(GL_INVALID_ENUM);
+			}
+			framebuffer->setColorbuffer(GL_RENDERBUFFER, renderbuffer, attachment - GL_COLOR_ATTACHMENT0);
+			break;
 		case GL_DEPTH_ATTACHMENT:
 			framebuffer->setDepthbuffer(GL_RENDERBUFFER, renderbuffer);
 			break;
@@ -1923,22 +1988,15 @@ void FramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuff
 			framebuffer->setStencilbuffer(GL_RENDERBUFFER, renderbuffer);
 			break;
 		case GL_DEPTH_STENCIL_ATTACHMENT:
-			framebuffer->setDepthbuffer(GL_RENDERBUFFER, renderbuffer);
-			framebuffer->setStencilbuffer(GL_RENDERBUFFER, renderbuffer);
-			break;
+			if(clientVersion >= 3)
+			{
+				framebuffer->setDepthbuffer(GL_RENDERBUFFER, renderbuffer);
+				framebuffer->setStencilbuffer(GL_RENDERBUFFER, renderbuffer);
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		default:
-			if(attachment < GL_COLOR_ATTACHMENT0 || attachment > GL_COLOR_ATTACHMENT31)
-			{
-				return error(GL_INVALID_ENUM);
-			}
-
-			if((attachment - GL_COLOR_ATTACHMENT0) >= MAX_COLOR_ATTACHMENTS)
-			{
-				return error(GL_INVALID_OPERATION);
-			}
-
-			framebuffer->setColorbuffer(GL_RENDERBUFFER, renderbuffer, attachment - GL_COLOR_ATTACHMENT0);
-			break;
+			return error(GL_INVALID_ENUM);
 		}
 	}
 }
@@ -1953,10 +2011,12 @@ void FramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GL
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
+		GLint clientVersion = context->getClientVersion();
+
 		if(texture == 0)
 		{
 			textarget = GL_NONE;
@@ -1999,7 +2059,7 @@ void FramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GL
 				return error(GL_INVALID_ENUM);
 			}
 
-			if((textarget == GL_TEXTURE_RECTANGLE_ARB) && (level != 0))
+			if((level != 0) && ((clientVersion < 3) || (textarget == GL_TEXTURE_RECTANGLE_ARB)))
 			{
 				return error(GL_INVALID_VALUE);
 			}
@@ -2035,25 +2095,56 @@ void FramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GL
 
 		switch(attachment)
 		{
-		case GL_DEPTH_ATTACHMENT:   framebuffer->setDepthbuffer(textarget, texture, level);   break;
-		case GL_STENCIL_ATTACHMENT: framebuffer->setStencilbuffer(textarget, texture, level); break;
-		case GL_DEPTH_STENCIL_ATTACHMENT:
-			framebuffer->setDepthbuffer(textarget, texture, level);
-			framebuffer->setStencilbuffer(textarget, texture, level);
-			break;
-		default:
-			if(attachment < GL_COLOR_ATTACHMENT0 || attachment > GL_COLOR_ATTACHMENT31)
+		case GL_COLOR_ATTACHMENT0:
+		case GL_COLOR_ATTACHMENT1:
+		case GL_COLOR_ATTACHMENT2:
+		case GL_COLOR_ATTACHMENT3:
+		case GL_COLOR_ATTACHMENT4:
+		case GL_COLOR_ATTACHMENT5:
+		case GL_COLOR_ATTACHMENT6:
+		case GL_COLOR_ATTACHMENT7:
+		case GL_COLOR_ATTACHMENT8:
+		case GL_COLOR_ATTACHMENT9:
+		case GL_COLOR_ATTACHMENT10:
+		case GL_COLOR_ATTACHMENT11:
+		case GL_COLOR_ATTACHMENT12:
+		case GL_COLOR_ATTACHMENT13:
+		case GL_COLOR_ATTACHMENT14:
+		case GL_COLOR_ATTACHMENT15:
+		case GL_COLOR_ATTACHMENT16:
+		case GL_COLOR_ATTACHMENT17:
+		case GL_COLOR_ATTACHMENT18:
+		case GL_COLOR_ATTACHMENT19:
+		case GL_COLOR_ATTACHMENT20:
+		case GL_COLOR_ATTACHMENT21:
+		case GL_COLOR_ATTACHMENT22:
+		case GL_COLOR_ATTACHMENT23:
+		case GL_COLOR_ATTACHMENT24:
+		case GL_COLOR_ATTACHMENT25:
+		case GL_COLOR_ATTACHMENT26:
+		case GL_COLOR_ATTACHMENT27:
+		case GL_COLOR_ATTACHMENT28:
+		case GL_COLOR_ATTACHMENT29:
+		case GL_COLOR_ATTACHMENT30:
+		case GL_COLOR_ATTACHMENT31:
+			if((attachment - GL_COLOR_ATTACHMENT0) >= MAX_COLOR_ATTACHMENTS)
 			{
 				return error(GL_INVALID_ENUM);
 			}
-
-			if((attachment - GL_COLOR_ATTACHMENT0) >= MAX_COLOR_ATTACHMENTS)
-			{
-				return error(GL_INVALID_OPERATION);
-			}
-
 			framebuffer->setColorbuffer(textarget, texture, attachment - GL_COLOR_ATTACHMENT0, level);
 			break;
+		case GL_DEPTH_ATTACHMENT:   framebuffer->setDepthbuffer(textarget, texture, level);   break;
+		case GL_STENCIL_ATTACHMENT: framebuffer->setStencilbuffer(textarget, texture, level); break;
+		case GL_DEPTH_STENCIL_ATTACHMENT:
+			if(clientVersion >= 3)
+			{
+				framebuffer->setDepthbuffer(textarget, texture, level);
+				framebuffer->setStencilbuffer(textarget, texture, level);
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
+		default:
+			return error(GL_INVALID_ENUM);
 		}
 	}
 }
@@ -2067,7 +2158,7 @@ void FrontFace(GLenum mode)
 	case GL_CW:
 	case GL_CCW:
 		{
-			auto context = es2::getContext();
+			es2::Context *context = es2::getContext();
 
 			if(context)
 			{
@@ -2089,7 +2180,7 @@ void GenBuffers(GLsizei n, GLuint* buffers)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2104,11 +2195,13 @@ void GenerateMipmap(GLenum target)
 {
 	TRACE("(GLenum target = 0x%X)", target);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
 		es2::Texture *texture = nullptr;
+
+		GLint clientVersion = context->getClientVersion();
 
 		switch(target)
 		{
@@ -2127,7 +2220,14 @@ void GenerateMipmap(GLenum target)
 			}
 			break;
 		case GL_TEXTURE_2D_ARRAY:
-			texture = context->getTexture2DArray();
+			if(clientVersion < 3)
+			{
+				return error(GL_INVALID_ENUM);
+			}
+			else
+			{
+				texture = context->getTexture2DArray();
+			}
 			break;
 		case GL_TEXTURE_3D:
 			texture = context->getTexture3D();
@@ -2139,7 +2239,7 @@ void GenerateMipmap(GLenum target)
 			return error(GL_INVALID_ENUM);
 		}
 
-		if(!IsMipmappable(texture->getFormat(target, texture->getBaseLevel())))
+		if(!IsMipmappable(texture->getFormat(target, texture->getBaseLevel()), clientVersion))
 		{
 			return error(GL_INVALID_OPERATION);
 		}
@@ -2157,7 +2257,7 @@ void GenFencesNV(GLsizei n, GLuint* fences)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2177,7 +2277,7 @@ void GenFramebuffers(GLsizei n, GLuint* framebuffers)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2197,7 +2297,7 @@ void GenQueriesEXT(GLsizei n, GLuint* ids)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2217,7 +2317,7 @@ void GenRenderbuffers(GLsizei n, GLuint* renderbuffers)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2237,7 +2337,7 @@ void GenTextures(GLsizei n, GLuint* textures)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2259,7 +2359,7 @@ void GetActiveAttrib(GLuint program, GLuint index, GLsizei bufsize, GLsizei *len
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2297,7 +2397,7 @@ void GetActiveUniform(GLuint program, GLuint index, GLsizei bufsize, GLsizei* le
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2334,7 +2434,7 @@ void GetAttachedShaders(GLuint program, GLsizei maxcount, GLsizei* count, GLuint
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2360,10 +2460,11 @@ int GetAttribLocation(GLuint program, const GLchar* name)
 {
 	TRACE("(GLuint program = %d, const GLchar* name = %s)", program, name);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
+
 		es2::Program *programObject = context->getProgram(program);
 
 		if(!programObject)
@@ -2393,7 +2494,7 @@ void GetBooleanv(GLenum pname, GLboolean* params)
 {
 	TRACE("(GLenum pname = 0x%X, GLboolean* params = %p)",  pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2449,7 +2550,7 @@ void GetBufferParameteriv(GLenum target, GLenum pname, GLint* params)
 {
 	TRACE("(GLenum target = 0x%X, GLenum pname = 0x%X, GLint* params = %p)", target, pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2465,6 +2566,8 @@ void GetBufferParameteriv(GLenum target, GLenum pname, GLint* params)
 			return error(GL_INVALID_OPERATION);
 		}
 
+		GLint clientVersion = context->getClientVersion();
+
 		switch(pname)
 		{
 		case GL_BUFFER_USAGE:
@@ -2474,17 +2577,33 @@ void GetBufferParameteriv(GLenum target, GLenum pname, GLint* params)
 			*params = (GLint)buffer->size();
 			break;
 		case GL_BUFFER_ACCESS_FLAGS:
-			*params = buffer->access();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = buffer->access();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_BUFFER_MAPPED:
-			*params = buffer->isMapped();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = buffer->isMapped();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_BUFFER_MAP_LENGTH:
-			*params = (GLint)buffer->length();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)buffer->length();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_BUFFER_MAP_OFFSET:
-			*params = (GLint)buffer->offset();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)buffer->offset();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		default:
 			return error(GL_INVALID_ENUM);
 		}
@@ -2495,7 +2614,7 @@ GLenum GetError(void)
 {
 	TRACE("()");
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2509,7 +2628,7 @@ void GetFenceivNV(GLuint fence, GLenum pname, GLint *params)
 {
 	TRACE("(GLuint fence = %d, GLenum pname = 0x%X, GLint *params = %p)", fence, pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2528,7 +2647,7 @@ void GetFloatv(GLenum pname, GLfloat* params)
 {
 	TRACE("(GLenum pname = 0x%X, GLfloat* params = %p)", pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2582,7 +2701,7 @@ void GetFramebufferAttachmentParameteriv(GLenum target, GLenum attachment, GLenu
 	TRACE("(GLenum target = 0x%X, GLenum attachment = 0x%X, GLenum pname = 0x%X, GLint* params = %p)",
 	      target, attachment, pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2602,11 +2721,26 @@ void GetFramebufferAttachmentParameteriv(GLenum target, GLenum attachment, GLenu
 			framebufferName = context->getDrawFramebufferName();
 		}
 
+		GLint clientVersion = context->getClientVersion();
+
+		if(framebufferName == 0)   // Default framebuffer.
+		{
+			if(clientVersion < 3)
+			{
+				return error(GL_INVALID_OPERATION);
+			}
+		}
+
 		switch(attachment)
 		{
 		case GL_BACK:
 		case GL_DEPTH:
 		case GL_STENCIL:
+			if(clientVersion < 3)
+			{
+				return error(GL_INVALID_ENUM);
+			}
+
 			if(framebufferName != 0)
 			{
 				return error(GL_INVALID_OPERATION);
@@ -2620,27 +2754,25 @@ void GetFramebufferAttachmentParameteriv(GLenum target, GLenum attachment, GLenu
 			}
 			break;
 		case GL_DEPTH_STENCIL_ATTACHMENT:
+			if(clientVersion < 3)
+			{
+				return error(GL_INVALID_ENUM);
+			}
+
 			if(framebufferName == 0)
 			{
 				return error(GL_INVALID_OPERATION);
 			}
 			break;
 		default:
-			if(framebufferName == 0)
+			if((unsigned int)(attachment - GL_COLOR_ATTACHMENT0) < MAX_COLOR_ATTACHMENTS)
 			{
-				return error(GL_INVALID_OPERATION);
+				if(framebufferName == 0)
+				{
+					return error(GL_INVALID_OPERATION);
+				}
 			}
-
-			if(attachment < GL_COLOR_ATTACHMENT0 || attachment > GL_COLOR_ATTACHMENT31)
-			{
-				return error(GL_INVALID_ENUM);
-			}
-
-			if((attachment - GL_COLOR_ATTACHMENT0) >= MAX_COLOR_ATTACHMENTS)
-			{
-				return error(GL_INVALID_OPERATION);
-			}
-			break;
+			else return error(GL_INVALID_ENUM);
 		}
 
 		es2::Framebuffer *framebuffer = context->getFramebuffer(framebufferName);
@@ -2732,7 +2864,7 @@ void GetFramebufferAttachmentParameteriv(GLenum target, GLenum attachment, GLenu
 			case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL:
 				if(attachmentObjectType == GL_TEXTURE)
 				{
-					*params = renderbuffer->getLevel();
+					*params = clientVersion < 3 ? 0 : renderbuffer->getLevel();   // glFramebufferTexture2D does not allow level to be set to anything else in GL ES 2.0
 				}
 				else
 				{
@@ -2757,25 +2889,53 @@ void GetFramebufferAttachmentParameteriv(GLenum target, GLenum attachment, GLenu
 				}
 				break;
 			case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER:
-				*params = attachmentLayer;
+				if(clientVersion >= 3)
+				{
+					*params = attachmentLayer;
+				}
+				else return error(GL_INVALID_ENUM);
 				break;
 			case GL_FRAMEBUFFER_ATTACHMENT_RED_SIZE:
-				*params = renderbuffer->getRedSize();
+				if(clientVersion >= 3)
+				{
+					*params = renderbuffer->getRedSize();
+				}
+				else return error(GL_INVALID_ENUM);
 				break;
 			case GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE:
-				*params = renderbuffer->getGreenSize();
+				if(clientVersion >= 3)
+				{
+					*params = renderbuffer->getGreenSize();
+				}
+				else return error(GL_INVALID_ENUM);
 				break;
 			case GL_FRAMEBUFFER_ATTACHMENT_BLUE_SIZE:
-				*params = renderbuffer->getBlueSize();
+				if(clientVersion >= 3)
+				{
+					*params = renderbuffer->getBlueSize();
+				}
+				else return error(GL_INVALID_ENUM);
 				break;
 			case GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE:
-				*params = renderbuffer->getAlphaSize();
+				if(clientVersion >= 3)
+				{
+					*params = renderbuffer->getAlphaSize();
+				}
+				else return error(GL_INVALID_ENUM);
 				break;
 			case GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE:
-				*params = renderbuffer->getDepthSize();
+				if(clientVersion >= 3)
+				{
+					*params = renderbuffer->getDepthSize();
+				}
+				else return error(GL_INVALID_ENUM);
 				break;
 			case GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE:
-				*params = renderbuffer->getStencilSize();
+				if(clientVersion >= 3)
+				{
+					*params = renderbuffer->getStencilSize();
+				}
+				else return error(GL_INVALID_ENUM);
 				break;
 			case GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE:
 		//	case GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE_EXT:   // GL_EXT_color_buffer_half_float
@@ -2787,7 +2947,11 @@ void GetFramebufferAttachmentParameteriv(GLenum target, GLenum attachment, GLenu
 				*params = GetComponentType(renderbuffer->getFormat(), attachment);
 				break;
 			case GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING:
-				*params = GetColorEncoding(renderbuffer->getFormat());
+				if(clientVersion >= 3)
+				{
+					*params = GetColorEncoding(renderbuffer->getFormat());
+				}
+				else return error(GL_INVALID_ENUM);
 				break;
 			default:
 				return error(GL_INVALID_ENUM);
@@ -2808,10 +2972,21 @@ void GetFramebufferAttachmentParameteriv(GLenum target, GLenum attachment, GLenu
 				*params = GL_NONE;
 				break;
 			case GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME:
+				if(clientVersion < 3)
+				{
+					return error(GL_INVALID_ENUM);
+				}
 				*params = 0;
 				break;
 			default:
-				return error(GL_INVALID_OPERATION);
+				if(clientVersion < 3)
+				{
+					return error(GL_INVALID_ENUM);
+				}
+				else
+				{
+					return error(GL_INVALID_OPERATION);
+				}
 			}
 		}
 	}
@@ -2828,7 +3003,7 @@ void GetIntegerv(GLenum pname, GLint* params)
 {
 	TRACE("(GLenum pname = 0x%X, GLint* params = %p)", pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(!context)
 	{
@@ -2906,7 +3081,7 @@ void GetProgramiv(GLuint program, GLenum pname, GLint* params)
 {
 	TRACE("(GLuint program = %d, GLenum pname = 0x%X, GLint* params = %p)", program, pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -2923,6 +3098,8 @@ void GetProgramiv(GLuint program, GLenum pname, GLint* params)
 				return error(GL_INVALID_VALUE);
 			}
 		}
+
+		GLint clientVersion = egl::getClientVersion();
 
 		switch(pname)
 		{
@@ -2954,26 +3131,54 @@ void GetProgramiv(GLuint program, GLenum pname, GLint* params)
 			*params = programObject->getActiveUniformMaxLength();
 			return;
 		case GL_ACTIVE_UNIFORM_BLOCKS:
-			*params = (GLint)programObject->getActiveUniformBlockCount();
-			return;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)programObject->getActiveUniformBlockCount();
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_ACTIVE_UNIFORM_BLOCK_MAX_NAME_LENGTH:
-			*params = programObject->getActiveUniformBlockMaxLength();
-			return;
+			if(clientVersion >= 3)
+			{
+				*params = programObject->getActiveUniformBlockMaxLength();
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TRANSFORM_FEEDBACK_BUFFER_MODE:
-			*params = programObject->getTransformFeedbackBufferMode();
-			return;
+			if(clientVersion >= 3)
+			{
+				*params = programObject->getTransformFeedbackBufferMode();
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TRANSFORM_FEEDBACK_VARYINGS:
-			*params = programObject->getTransformFeedbackVaryingCount();
-			return;
+			if(clientVersion >= 3)
+			{
+				*params = programObject->getTransformFeedbackVaryingCount();
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TRANSFORM_FEEDBACK_VARYING_MAX_LENGTH:
-			*params = programObject->getTransformFeedbackVaryingMaxLength();
-			return;
+			if(clientVersion >= 3)
+			{
+				*params = programObject->getTransformFeedbackVaryingMaxLength();
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_PROGRAM_BINARY_RETRIEVABLE_HINT:
-			*params = programObject->getBinaryRetrievableHint();
-			return;
+			if(clientVersion >= 3)
+			{
+				*params = programObject->getBinaryRetrievableHint();
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_PROGRAM_BINARY_LENGTH:
-			*params = programObject->getBinaryLength();
-			return;
+			if(clientVersion >= 3)
+			{
+				*params = programObject->getBinaryLength();
+				return;
+			}
+			else return error(GL_INVALID_ENUM);
 		default:
 			return error(GL_INVALID_ENUM);
 		}
@@ -2990,7 +3195,7 @@ void GetProgramInfoLog(GLuint program, GLsizei bufsize, GLsizei* length, GLchar*
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3024,7 +3229,7 @@ void GetQueryivEXT(GLenum target, GLenum pname, GLint *params)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3045,7 +3250,7 @@ void GetQueryObjectuivEXT(GLuint name, GLenum pname, GLuint *params)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3079,7 +3284,7 @@ void GetRenderbufferParameteriv(GLenum target, GLenum pname, GLint* params)
 {
 	TRACE("(GLenum target = 0x%X, GLenum pname = 0x%X, GLint* params = %p)", target, pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3122,7 +3327,7 @@ void GetShaderiv(GLuint shader, GLenum pname, GLint* params)
 {
 	TRACE("(GLuint shader = %d, GLenum pname = %d, GLint* params = %p)", shader, pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3173,7 +3378,7 @@ void GetShaderInfoLog(GLuint shader, GLsizei bufsize, GLsizei* length, GLchar* i
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3242,7 +3447,7 @@ void GetShaderSource(GLuint shader, GLsizei bufsize, GLsizei* length, GLchar* so
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3275,12 +3480,22 @@ const GLubyte* GetString(GLenum name)
 	case GL_RENDERER:
 		return (GLubyte*)"Google SwiftShader";
 	case GL_VERSION:
-		return (GLubyte*)"OpenGL ES 3.0 SwiftShader " VERSION_STRING;
+		{
+			es2::Context *context = es2::getContext();
+			return (context && (context->getClientVersion() >= 3)) ?
+			       (GLubyte*)"OpenGL ES 3.0 SwiftShader " VERSION_STRING :
+			       (GLubyte*)"OpenGL ES 2.0 SwiftShader " VERSION_STRING;
+		}
 	case GL_SHADING_LANGUAGE_VERSION:
-		return (GLubyte*)"OpenGL ES GLSL ES 3.00 SwiftShader " VERSION_STRING;
+		{
+			es2::Context *context = es2::getContext();
+			return (context && (context->getClientVersion() >= 3)) ?
+			       (GLubyte*)"OpenGL ES GLSL ES 3.00 SwiftShader " VERSION_STRING :
+			       (GLubyte*)"OpenGL ES GLSL ES 1.00 SwiftShader " VERSION_STRING;
+		}
 	case GL_EXTENSIONS:
 		{
-			auto context = es2::getContext();
+			es2::Context *context = es2::getContext();
 			return context ? context->getExtensions(GL_INVALID_INDEX) : (GLubyte*)nullptr;
 		}
 	default:
@@ -3292,20 +3507,41 @@ void GetTexParameterfv(GLenum target, GLenum pname, GLfloat* params)
 {
 	TRACE("(GLenum target = 0x%X, GLenum pname = 0x%X, GLfloat* params = %p)", target, pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
 		es2::Texture *texture;
 
+		GLint clientVersion = context->getClientVersion();
+
 		switch(target)
 		{
-		case GL_TEXTURE_2D:            texture = context->getTexture2D();       break;
-		case GL_TEXTURE_2D_ARRAY:      texture = context->getTexture2DArray();  break;
-		case GL_TEXTURE_3D:            texture = context->getTexture3D();       break;
-		case GL_TEXTURE_CUBE_MAP:      texture = context->getTextureCubeMap();  break;
-		case GL_TEXTURE_EXTERNAL_OES:  texture = context->getTextureExternal(); break;
-		case GL_TEXTURE_RECTANGLE_ARB: texture = context->getTexture2DRect();   break;
+		case GL_TEXTURE_2D:
+			texture = context->getTexture2D();
+			break;
+		case GL_TEXTURE_CUBE_MAP:
+			texture = context->getTextureCubeMap();
+			break;
+		case GL_TEXTURE_EXTERNAL_OES:
+			texture = context->getTextureExternal();
+			break;
+		case GL_TEXTURE_2D_ARRAY:
+			if(clientVersion < 3)
+			{
+				return error(GL_INVALID_ENUM);
+			}
+			else
+			{
+				texture = context->getTexture2DArray();
+			}
+			break;
+		case GL_TEXTURE_3D:
+			texture = context->getTexture3D();
+			break;
+		case GL_TEXTURE_RECTANGLE_ARB:
+			texture = context->getTexture2DRect();
+			break;
 		default:
 			return error(GL_INVALID_ENUM);
 		}
@@ -3334,41 +3570,89 @@ void GetTexParameterfv(GLenum target, GLenum pname, GLfloat* params)
 			*params = (GLfloat)1;
 			break;
 		case GL_TEXTURE_BASE_LEVEL:
-			*params = (GLfloat)texture->getBaseLevel();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)texture->getBaseLevel();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_COMPARE_FUNC:
-			*params = (GLfloat)texture->getCompareFunc();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)texture->getCompareFunc();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_COMPARE_MODE:
-			*params = (GLfloat)texture->getCompareMode();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)texture->getCompareMode();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_IMMUTABLE_FORMAT:
-			*params = (GLfloat)texture->getImmutableFormat();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)texture->getImmutableFormat();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_IMMUTABLE_LEVELS:
-			*params = (GLfloat)texture->getImmutableLevels();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)texture->getImmutableLevels();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_MAX_LEVEL:
-			*params = (GLfloat)texture->getMaxLevel();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)texture->getMaxLevel();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_MAX_LOD:
-			*params = texture->getMaxLOD();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = texture->getMaxLOD();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_MIN_LOD:
-			*params = texture->getMinLOD();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = texture->getMinLOD();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_SWIZZLE_R:
-			*params = (GLfloat)texture->getSwizzleR();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)texture->getSwizzleR();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_SWIZZLE_G:
-			*params = (GLfloat)texture->getSwizzleG();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)texture->getSwizzleG();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_SWIZZLE_B:
-			*params = (GLfloat)texture->getSwizzleB();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)texture->getSwizzleB();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_SWIZZLE_A:
-			*params = (GLfloat)texture->getSwizzleA();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)texture->getSwizzleA();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		default:
 			return error(GL_INVALID_ENUM);
 		}
@@ -3379,20 +3663,41 @@ void GetTexParameteriv(GLenum target, GLenum pname, GLint* params)
 {
 	TRACE("(GLenum target = 0x%X, GLenum pname = 0x%X, GLint* params = %p)", target, pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
 		es2::Texture *texture;
 
+		GLint clientVersion = context->getClientVersion();
+
 		switch(target)
 		{
-		case GL_TEXTURE_2D:            texture = context->getTexture2D();       break;
-		case GL_TEXTURE_2D_ARRAY:      texture = context->getTexture2DArray();  break;
-		case GL_TEXTURE_3D:            texture = context->getTexture3D();       break;
-		case GL_TEXTURE_CUBE_MAP:      texture = context->getTextureCubeMap();  break;
-		case GL_TEXTURE_EXTERNAL_OES:  texture = context->getTextureExternal(); break;
-		case GL_TEXTURE_RECTANGLE_ARB: texture = context->getTexture2DRect();   break;
+		case GL_TEXTURE_2D:
+			texture = context->getTexture2D();
+			break;
+		case GL_TEXTURE_CUBE_MAP:
+			texture = context->getTextureCubeMap();
+			break;
+		case GL_TEXTURE_EXTERNAL_OES:
+			texture = context->getTextureExternal();
+			break;
+		case GL_TEXTURE_2D_ARRAY:
+			if(clientVersion < 3)
+			{
+				return error(GL_INVALID_ENUM);
+			}
+			else
+			{
+				texture = context->getTexture2DArray();
+			}
+			break;
+		case GL_TEXTURE_3D:
+			texture = context->getTexture3D();
+			break;
+		case GL_TEXTURE_RECTANGLE_ARB:
+			texture = context->getTexture2DRect();
+			break;
 		default:
 			return error(GL_INVALID_ENUM);
 		}
@@ -3421,41 +3726,89 @@ void GetTexParameteriv(GLenum target, GLenum pname, GLint* params)
 			*params = 1;
 			break;
 		case GL_TEXTURE_BASE_LEVEL:
-			*params = texture->getBaseLevel();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = texture->getBaseLevel();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_COMPARE_FUNC:
-			*params = (GLint)texture->getCompareFunc();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)texture->getCompareFunc();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_COMPARE_MODE:
-			*params = (GLint)texture->getCompareMode();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)texture->getCompareMode();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_IMMUTABLE_FORMAT:
-			*params = (GLint)texture->getImmutableFormat();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)texture->getImmutableFormat();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_IMMUTABLE_LEVELS:
-			*params = (GLint)texture->getImmutableLevels();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)texture->getImmutableLevels();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_MAX_LEVEL:
-			*params = texture->getMaxLevel();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = texture->getMaxLevel();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_MAX_LOD:
-			*params = (GLint)roundf(texture->getMaxLOD());
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)roundf(texture->getMaxLOD());
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_MIN_LOD:
-			*params = (GLint)roundf(texture->getMinLOD());
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)roundf(texture->getMinLOD());
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_SWIZZLE_R:
-			*params = (GLint)texture->getSwizzleR();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)texture->getSwizzleR();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_SWIZZLE_G:
-			*params = (GLint)texture->getSwizzleG();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)texture->getSwizzleG();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_SWIZZLE_B:
-			*params = (GLint)texture->getSwizzleB();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)texture->getSwizzleB();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		case GL_TEXTURE_SWIZZLE_A:
-			*params = (GLint)texture->getSwizzleA();
-			break;
+			if(clientVersion >= 3)
+			{
+				*params = (GLint)texture->getSwizzleA();
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
 		default:
 			return error(GL_INVALID_ENUM);
 		}
@@ -3472,7 +3825,7 @@ void GetnUniformfvEXT(GLuint program, GLint location, GLsizei bufSize, GLfloat* 
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3506,7 +3859,7 @@ void GetUniformfv(GLuint program, GLint location, GLfloat* params)
 {
 	TRACE("(GLuint program = %d, GLint location = %d, GLfloat* params = %p)", program, location, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3546,7 +3899,7 @@ void GetnUniformivEXT(GLuint program, GLint location, GLsizei bufSize, GLint* pa
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3580,7 +3933,7 @@ void GetUniformiv(GLuint program, GLint location, GLint* params)
 {
 	TRACE("(GLuint program = %d, GLint location = %d, GLint* params = %p)", program, location, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3614,7 +3967,7 @@ int GetUniformLocation(GLuint program, const GLchar* name)
 {
 	TRACE("(GLuint program = %d, const GLchar* name = %s)", program, name);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(strstr(name, "gl_") == name)
 	{
@@ -3652,7 +4005,7 @@ void GetVertexAttribfv(GLuint index, GLenum pname, GLfloat* params)
 {
 	TRACE("(GLuint index = %d, GLenum pname = 0x%X, GLfloat* params = %p)", index, pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3662,6 +4015,8 @@ void GetVertexAttribfv(GLuint index, GLenum pname, GLfloat* params)
 		}
 
 		const es2::VertexAttribute &attribState = context->getVertexAttribState(index);
+
+		GLint clientVersion = context->getClientVersion();
 
 		switch(pname)
 		{
@@ -3693,10 +4048,13 @@ void GetVertexAttribfv(GLuint index, GLenum pname, GLfloat* params)
 			}
 			break;
 		case GL_VERTEX_ATTRIB_ARRAY_INTEGER:
-			*params = (GLfloat)(attribState.mPureInteger ? GL_TRUE : GL_FALSE);
-			break;
-		default:
-			return error(GL_INVALID_ENUM);
+			if(clientVersion >= 3)
+			{
+				*params = (GLfloat)(attribState.mPureInteger ? GL_TRUE : GL_FALSE);
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
+		default: return error(GL_INVALID_ENUM);
 		}
 	}
 }
@@ -3705,7 +4063,7 @@ void GetVertexAttribiv(GLuint index, GLenum pname, GLint* params)
 {
 	TRACE("(GLuint index = %d, GLenum pname = 0x%X, GLint* params = %p)", index, pname, params);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3715,6 +4073,8 @@ void GetVertexAttribiv(GLuint index, GLenum pname, GLint* params)
 		}
 
 		const es2::VertexAttribute &attribState = context->getVertexAttribState(index);
+
+		GLint clientVersion = context->getClientVersion();
 
 		switch(pname)
 		{
@@ -3747,10 +4107,13 @@ void GetVertexAttribiv(GLuint index, GLenum pname, GLint* params)
 			}
 			break;
 		case GL_VERTEX_ATTRIB_ARRAY_INTEGER:
-			*params = (attribState.mPureInteger ? GL_TRUE : GL_FALSE);
-			break;
-		default:
-			return error(GL_INVALID_ENUM);
+			if(clientVersion >= 3)
+			{
+				*params = (attribState.mPureInteger ? GL_TRUE : GL_FALSE);
+				break;
+			}
+			else return error(GL_INVALID_ENUM);
+		default: return error(GL_INVALID_ENUM);
 		}
 	}
 }
@@ -3759,7 +4122,7 @@ void GetVertexAttribPointerv(GLuint index, GLenum pname, GLvoid** pointer)
 {
 	TRACE("(GLuint index = %d, GLenum pname = 0x%X, GLvoid** pointer = %p)", index, pname, pointer);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3791,7 +4154,7 @@ void Hint(GLenum target, GLenum mode)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3816,7 +4179,7 @@ GLboolean IsBuffer(GLuint buffer)
 {
 	TRACE("(GLuint buffer = %d)", buffer);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context && buffer)
 	{
@@ -3835,10 +4198,12 @@ GLboolean IsEnabled(GLenum cap)
 {
 	TRACE("(GLenum cap = 0x%X)", cap);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
+		GLint clientVersion = context->getClientVersion();
+
 		switch(cap)
 		{
 		case GL_CULL_FACE:                return context->isCullFaceEnabled();
@@ -3850,8 +4215,18 @@ GLboolean IsEnabled(GLenum cap)
 		case GL_DEPTH_TEST:               return context->isDepthTestEnabled();
 		case GL_BLEND:                    return context->isBlendEnabled();
 		case GL_DITHER:                   return context->isDitherEnabled();
-		case GL_PRIMITIVE_RESTART_FIXED_INDEX: return context->isPrimitiveRestartFixedIndexEnabled();
-		case GL_RASTERIZER_DISCARD:       return context->isRasterizerDiscardEnabled();
+		case GL_PRIMITIVE_RESTART_FIXED_INDEX:
+			if(clientVersion >= 3)
+			{
+				return context->isPrimitiveRestartFixedIndexEnabled();
+			}
+			else return error(GL_INVALID_ENUM, false);
+		case GL_RASTERIZER_DISCARD:
+			if(clientVersion >= 3)
+			{
+				return context->isRasterizerDiscardEnabled();
+			}
+			else return error(GL_INVALID_ENUM, false);
 		default:
 			return error(GL_INVALID_ENUM, false);
 		}
@@ -3864,7 +4239,7 @@ GLboolean IsFenceNV(GLuint fence)
 {
 	TRACE("(GLuint fence = %d)", fence);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3885,7 +4260,7 @@ GLboolean IsFramebuffer(GLuint framebuffer)
 {
 	TRACE("(GLuint framebuffer = %d)", framebuffer);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context && framebuffer)
 	{
@@ -3904,7 +4279,7 @@ GLboolean IsProgram(GLuint program)
 {
 	TRACE("(GLuint program = %d)", program);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context && program)
 	{
@@ -3928,7 +4303,7 @@ GLboolean IsQueryEXT(GLuint name)
 		return GL_FALSE;
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -3947,7 +4322,7 @@ GLboolean IsRenderbuffer(GLuint renderbuffer)
 {
 	TRACE("(GLuint renderbuffer = %d)", renderbuffer);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context && renderbuffer)
 	{
@@ -3966,7 +4341,7 @@ GLboolean IsShader(GLuint shader)
 {
 	TRACE("(GLuint shader = %d)", shader);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context && shader)
 	{
@@ -3985,7 +4360,7 @@ GLboolean IsTexture(GLuint texture)
 {
 	TRACE("(GLuint texture = %d)", texture);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context && texture)
 	{
@@ -4009,7 +4384,7 @@ void LineWidth(GLfloat width)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4021,7 +4396,7 @@ void LinkProgram(GLuint program)
 {
 	TRACE("(GLuint program = %d)", program);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4056,10 +4431,12 @@ void PixelStorei(GLenum pname, GLint param)
 {
 	TRACE("(GLenum pname = 0x%X, GLint param = %d)", pname, param);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
+		GLint clientVersion = context->getClientVersion();
+
 		switch(pname)
 		{
 		case GL_UNPACK_ALIGNMENT:
@@ -4077,61 +4454,92 @@ void PixelStorei(GLenum pname, GLint param)
 			context->setPackAlignment(param);
 			break;
 		case GL_PACK_ROW_LENGTH:
-			if(param < 0)
+			if(clientVersion >= 3)
 			{
-				return error(GL_INVALID_VALUE);
+				if(param < 0)
+				{
+					return error(GL_INVALID_VALUE);
+				}
+				context->setPackRowLength(param);
+				break;
 			}
-			context->setPackRowLength(param);
-			break;
+			else return error(GL_INVALID_ENUM);
 		case GL_PACK_SKIP_PIXELS:
-			if(param < 0)
+			if(clientVersion >= 3)
 			{
-				return error(GL_INVALID_VALUE);
+				if(param < 0)
+				{
+					return error(GL_INVALID_VALUE);
+				}
+				context->setPackSkipPixels(param);
+				break;
 			}
-			context->setPackSkipPixels(param);
-			break;
+			else return error(GL_INVALID_ENUM);
 		case GL_PACK_SKIP_ROWS:
-			if(param < 0)
+			if(clientVersion >= 3)
 			{
-				return error(GL_INVALID_VALUE);
+				if(param < 0)
+				{
+					return error(GL_INVALID_VALUE);
+				}
+				context->setPackSkipRows(param);
+				break;
 			}
-			context->setPackSkipRows(param);
-			break;
+			else return error(GL_INVALID_ENUM);
 		case GL_UNPACK_ROW_LENGTH:
-			if(param < 0)
+			if(clientVersion >= 3)
 			{
-				return error(GL_INVALID_VALUE);
+				if(param < 0)
+				{
+					return error(GL_INVALID_VALUE);
+				}
+				context->setUnpackRowLength(param);
+				break;
 			}
-			context->setUnpackRowLength(param);
-			break;
+			else return error(GL_INVALID_ENUM);
 		case GL_UNPACK_IMAGE_HEIGHT:
-			if(param < 0)
+			if(clientVersion >= 3)
 			{
-				return error(GL_INVALID_VALUE);
+				if(param < 0)
+				{
+					return error(GL_INVALID_VALUE);
+				}
+				context->setUnpackImageHeight(param);
+				break;
 			}
-			context->setUnpackImageHeight(param);
-			break;
+			else return error(GL_INVALID_ENUM);
 		case GL_UNPACK_SKIP_PIXELS:
-			if(param < 0)
+			if(clientVersion >= 3)
 			{
-				return error(GL_INVALID_VALUE);
+				if(param < 0)
+				{
+					return error(GL_INVALID_VALUE);
+				}
+				context->setUnpackSkipPixels(param);
+				break;
 			}
-			context->setUnpackSkipPixels(param);
-			break;
+			else return error(GL_INVALID_ENUM);
 		case GL_UNPACK_SKIP_ROWS:
-			if(param < 0)
+			if(clientVersion >= 3)
 			{
-				return error(GL_INVALID_VALUE);
+				if(param < 0)
+				{
+					return error(GL_INVALID_VALUE);
+				}
+				context->setUnpackSkipRows(param);
+				break;
 			}
-			context->setUnpackSkipRows(param);
-			break;
+			else return error(GL_INVALID_ENUM);
 		case GL_UNPACK_SKIP_IMAGES:
-			if(param < 0)
-			{
-				return error(GL_INVALID_VALUE);
+			if(clientVersion >= 3) {
+				if(param < 0)
+				{
+					return error(GL_INVALID_VALUE);
+				}
+				context->setUnpackSkipImages(param);
+				break;
 			}
-			context->setUnpackSkipImages(param);
-			break;
+			else return error(GL_INVALID_ENUM);
 		default:
 			return error(GL_INVALID_ENUM);
 		}
@@ -4142,7 +4550,7 @@ void PolygonOffset(GLfloat factor, GLfloat units)
 {
 	TRACE("(GLfloat factor = %f, GLfloat units = %f)", factor, units);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4162,7 +4570,7 @@ void ReadnPixelsEXT(GLint x, GLint y, GLsizei width, GLsizei height,
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4181,7 +4589,7 @@ void ReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, 
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4222,7 +4630,7 @@ void RenderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum inter
 		return error(GL_INVALID_OPERATION);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4232,19 +4640,21 @@ void RenderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum inter
 			return error(GL_INVALID_OPERATION);
 		}
 
-		if(IsColorRenderable(internalformat))
+		GLint clientVersion = context->getClientVersion();
+
+		if(IsColorRenderable(internalformat, clientVersion))
 		{
 			context->setRenderbufferStorage(new es2::Colorbuffer(width, height, internalformat, samples));
 		}
-		else if(IsDepthRenderable(internalformat) && IsStencilRenderable(internalformat))
+		else if(IsDepthRenderable(internalformat, clientVersion) && IsStencilRenderable(internalformat, clientVersion))
 		{
 			context->setRenderbufferStorage(new es2::DepthStencilbuffer(width, height, internalformat, samples));
 		}
-		else if(IsDepthRenderable(internalformat))
+		else if(IsDepthRenderable(internalformat, clientVersion))
 		{
 			context->setRenderbufferStorage(new es2::Depthbuffer(width, height, internalformat, samples));
 		}
-		else if(IsStencilRenderable(internalformat))
+		else if(IsStencilRenderable(internalformat, clientVersion))
 		{
 			context->setRenderbufferStorage(new es2::Stencilbuffer(width, height, samples));
 		}
@@ -4266,11 +4676,11 @@ void SampleCoverage(GLclampf value, GLboolean invert)
 {
 	TRACE("(GLclampf value = %f, GLboolean invert = %d)", value, invert);
 
-	auto context = es2::getContext();
+	es2::Context* context = es2::getContext();
 
 	if(context)
 	{
-		context->setSampleCoverageParams(es2::clamp01(value), invert != GL_FALSE);
+		context->setSampleCoverageParams(es2::clamp01(value), invert == GL_TRUE);
 	}
 }
 
@@ -4283,7 +4693,7 @@ void SetFenceNV(GLuint fence, GLenum condition)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4307,7 +4717,7 @@ void Scissor(GLint x, GLint y, GLsizei width, GLsizei height)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context* context = es2::getContext();
 
 	if(context)
 	{
@@ -4335,7 +4745,7 @@ void ShaderSource(GLuint shader, GLsizei count, const GLchar *const *string, con
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4355,6 +4765,11 @@ void ShaderSource(GLuint shader, GLsizei count, const GLchar *const *string, con
 
 		shaderObject->setSource(count, string, length);
 	}
+}
+
+void StencilFunc(GLenum func, GLint ref, GLuint mask)
+{
+	glStencilFuncSeparate(GL_FRONT_AND_BACK, func, ref, mask);
 }
 
 void StencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask)
@@ -4386,7 +4801,7 @@ void StencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4402,9 +4817,9 @@ void StencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask)
 	}
 }
 
-void StencilFunc(GLenum func, GLint ref, GLuint mask)
+void StencilMask(GLuint mask)
 {
-	StencilFuncSeparate(GL_FRONT_AND_BACK, func, ref, mask);
+	glStencilMaskSeparate(GL_FRONT_AND_BACK, mask);
 }
 
 void StencilMaskSeparate(GLenum face, GLuint mask)
@@ -4421,7 +4836,7 @@ void StencilMaskSeparate(GLenum face, GLuint mask)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4437,9 +4852,9 @@ void StencilMaskSeparate(GLenum face, GLuint mask)
 	}
 }
 
-void StencilMask(GLuint mask)
+void StencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 {
-	StencilMaskSeparate(GL_FRONT_AND_BACK, mask);
+	glStencilOpSeparate(GL_FRONT_AND_BACK, fail, zfail, zpass);
 }
 
 void StencilOpSeparate(GLenum face, GLenum fail, GLenum zfail, GLenum zpass)
@@ -4502,7 +4917,7 @@ void StencilOpSeparate(GLenum face, GLenum fail, GLenum zfail, GLenum zpass)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4518,16 +4933,11 @@ void StencilOpSeparate(GLenum face, GLenum fail, GLenum zfail, GLenum zpass)
 	}
 }
 
-void StencilOp(GLenum fail, GLenum zfail, GLenum zpass)
-{
-	StencilOpSeparate(GL_FRONT_AND_BACK, fail, zfail, zpass);
-}
-
 GLboolean TestFenceNV(GLuint fence)
 {
 	TRACE("(GLuint fence = %d)", fence);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4556,18 +4966,29 @@ void TexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width,
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
-		// GL_APPLE_texture_format_BGRA8888 allows (only) GL_BGRA_EXT / GL_RGBA, while
+		// Core OpenGL ES 2.0 requires format and internalformat to be equal (checked below),
+		// but GL_APPLE_texture_format_BGRA8888 allows (only) GL_BGRA_EXT / GL_RGBA, while
 		// GL_EXT_texture_format_BGRA8888 also allows GL_BGRA_EXT / GL_BGRA_EXT.
 		if(format == GL_BGRA_EXT && internalformat == GL_RGBA)
 		{
 			internalformat = GL_BGRA_EXT;
 		}
 
-		GLenum validationError = ValidateTextureFormatType(format, type, internalformat, target);
+		GLint clientVersion = context->getClientVersion();
+		if(clientVersion < 3)
+		{
+			if((internalformat != (GLint)format) &&
+			   !((type == GL_FLOAT) && (format == GL_RGBA) && (internalformat == GL_RGBA32F))) // CHROMIUM_color_buffer_float_rgba
+			{
+				return error(GL_INVALID_OPERATION);
+			}
+		}
+
+		GLenum validationError = ValidateTextureFormatType(format, type, internalformat, target, clientVersion);
 		if(validationError != GL_NO_ERROR)
 		{
 			return error(validationError);
@@ -4651,20 +5072,41 @@ void TexParameterf(GLenum target, GLenum pname, GLfloat param)
 {
 	TRACE("(GLenum target = 0x%X, GLenum pname = 0x%X, GLfloat param = %f)", target, pname, param);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
 		es2::Texture *texture;
 
+		GLint clientVersion = context->getClientVersion();
+
 		switch(target)
 		{
-		case GL_TEXTURE_2D:            texture = context->getTexture2D();       break;
-		case GL_TEXTURE_2D_ARRAY:      texture = context->getTexture2DArray();  break;
-		case GL_TEXTURE_3D:            texture = context->getTexture3D();       break;
-		case GL_TEXTURE_CUBE_MAP:      texture = context->getTextureCubeMap();  break;
-		case GL_TEXTURE_EXTERNAL_OES:  texture = context->getTextureExternal(); break;
-		case GL_TEXTURE_RECTANGLE_ARB: texture = context->getTexture2DRect();   break;
+		case GL_TEXTURE_2D:
+			texture = context->getTexture2D();
+			break;
+		case GL_TEXTURE_2D_ARRAY:
+			if(clientVersion < 3)
+			{
+				return error(GL_INVALID_ENUM);
+			}
+			else
+			{
+				texture = context->getTexture2DArray();
+			}
+			break;
+		case GL_TEXTURE_3D:
+			texture = context->getTexture3D();
+			break;
+		case GL_TEXTURE_CUBE_MAP:
+			texture = context->getTextureCubeMap();
+			break;
+		case GL_TEXTURE_EXTERNAL_OES:
+			texture = context->getTextureExternal();
+			break;
+		case GL_TEXTURE_RECTANGLE_ARB:
+			texture = context->getTexture2DRect();
+			break;
 		default:
 			return error(GL_INVALID_ENUM);
 		}
@@ -4708,61 +5150,61 @@ void TexParameterf(GLenum target, GLenum pname, GLfloat param)
 			}
 			break;
 		case GL_TEXTURE_BASE_LEVEL:
-			if(!texture->setBaseLevel((GLint)(roundf(param))))
+			if(clientVersion < 3 || !texture->setBaseLevel((GLint)(roundf(param))))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_COMPARE_FUNC:
-			if(!texture->setCompareFunc((GLenum)param))
+			if(clientVersion < 3 || !texture->setCompareFunc((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_COMPARE_MODE:
-			if(!texture->setCompareMode((GLenum)param))
+			if(clientVersion < 3 || !texture->setCompareMode((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_MAX_LEVEL:
-			if(!texture->setMaxLevel((GLint)(roundf(param))))
+			if(clientVersion < 3 || !texture->setMaxLevel((GLint)(roundf(param))))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_MAX_LOD:
-			if(!texture->setMaxLOD(param))
+			if(clientVersion < 3 || !texture->setMaxLOD(param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_MIN_LOD:
-			if(!texture->setMinLOD(param))
+			if(clientVersion < 3 || !texture->setMinLOD(param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_SWIZZLE_R:
-			if(!texture->setSwizzleR((GLenum)param))
+			if(clientVersion < 3 || !texture->setSwizzleR((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_SWIZZLE_G:
-			if(!texture->setSwizzleG((GLenum)param))
+			if(clientVersion < 3 || !texture->setSwizzleG((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_SWIZZLE_B:
-			if(!texture->setSwizzleB((GLenum)param))
+			if(clientVersion < 3 || !texture->setSwizzleB((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_SWIZZLE_A:
-			if(!texture->setSwizzleA((GLenum)param))
+			if(clientVersion < 3 || !texture->setSwizzleA((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
@@ -4775,27 +5217,48 @@ void TexParameterf(GLenum target, GLenum pname, GLfloat param)
 
 void TexParameterfv(GLenum target, GLenum pname, const GLfloat* params)
 {
-	TexParameterf(target, pname, *params);
+	glTexParameterf(target, pname, *params);
 }
 
 void TexParameteri(GLenum target, GLenum pname, GLint param)
 {
 	TRACE("(GLenum target = 0x%X, GLenum pname = 0x%X, GLint param = %d)", target, pname, param);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
 		es2::Texture *texture;
 
+		GLint clientVersion = context->getClientVersion();
+
 		switch(target)
 		{
-		case GL_TEXTURE_2D:            texture = context->getTexture2D();       break;
-		case GL_TEXTURE_2D_ARRAY:      texture = context->getTexture2DArray();  break;
-		case GL_TEXTURE_3D:            texture = context->getTexture3D();       break;
-		case GL_TEXTURE_CUBE_MAP:      texture = context->getTextureCubeMap();  break;
-		case GL_TEXTURE_EXTERNAL_OES:  texture = context->getTextureExternal(); break;
-		case GL_TEXTURE_RECTANGLE_ARB: texture = context->getTexture2DRect();   break;
+		case GL_TEXTURE_2D:
+			texture = context->getTexture2D();
+			break;
+		case GL_TEXTURE_2D_ARRAY:
+			if(clientVersion < 3)
+			{
+				return error(GL_INVALID_ENUM);
+			}
+			else
+			{
+				texture = context->getTexture2DArray();
+			}
+			break;
+		case GL_TEXTURE_3D:
+			texture = context->getTexture3D();
+			break;
+		case GL_TEXTURE_CUBE_MAP:
+			texture = context->getTextureCubeMap();
+			break;
+		case GL_TEXTURE_EXTERNAL_OES:
+			texture = context->getTextureExternal();
+			break;
+		case GL_TEXTURE_RECTANGLE_ARB:
+			texture = context->getTexture2DRect();
+			break;
 		default:
 			return error(GL_INVALID_ENUM);
 		}
@@ -4843,61 +5306,61 @@ void TexParameteri(GLenum target, GLenum pname, GLint param)
 			{
 				return error(GL_INVALID_OPERATION); // Base level has to be 0
 			}
-			if(!texture->setBaseLevel(param))
+			if(clientVersion < 3 || !texture->setBaseLevel(param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_COMPARE_FUNC:
-			if(!texture->setCompareFunc((GLenum)param))
+			if(clientVersion < 3 || !texture->setCompareFunc((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_COMPARE_MODE:
-			if(!texture->setCompareMode((GLenum)param))
+			if(clientVersion < 3 || !texture->setCompareMode((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_MAX_LEVEL:
-			if(!texture->setMaxLevel(param))
+			if(clientVersion < 3 || !texture->setMaxLevel(param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_MAX_LOD:
-			if(!texture->setMaxLOD((GLfloat)param))
+			if(clientVersion < 3 || !texture->setMaxLOD((GLfloat)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_MIN_LOD:
-			if(!texture->setMinLOD((GLfloat)param))
+			if(clientVersion < 3 || !texture->setMinLOD((GLfloat)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_SWIZZLE_R:
-			if(!texture->setSwizzleR((GLenum)param))
+			if(clientVersion < 3 || !texture->setSwizzleR((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_SWIZZLE_G:
-			if(!texture->setSwizzleG((GLenum)param))
+			if(clientVersion < 3 || !texture->setSwizzleG((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_SWIZZLE_B:
-			if(!texture->setSwizzleB((GLenum)param))
+			if(clientVersion < 3 || !texture->setSwizzleB((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
 			break;
 		case GL_TEXTURE_SWIZZLE_A:
-			if(!texture->setSwizzleA((GLenum)param))
+			if(clientVersion < 3 || !texture->setSwizzleA((GLenum)param))
 			{
 				return error(GL_INVALID_VALUE);
 			}
@@ -4910,7 +5373,7 @@ void TexParameteri(GLenum target, GLenum pname, GLint param)
 
 void TexParameteriv(GLenum target, GLenum pname, const GLint* params)
 {
-	TexParameteri(target, pname, *params);
+	glTexParameteri(target, pname, *params);
 }
 
 void TexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height,
@@ -4941,7 +5404,7 @@ void TexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLs
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -4949,7 +5412,7 @@ void TexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLs
 		{
 			es2::Texture2D *texture = context->getTexture2D(target);
 
-			GLenum validationError = ValidateSubImageParams(false, false, target, level, xoffset, yoffset, width, height, format, type, texture);
+			GLenum validationError = ValidateSubImageParams(false, false, target, level, xoffset, yoffset, width, height, format, type, texture, context->getClientVersion());
 			if(validationError != GL_NO_ERROR)
 			{
 				return error(validationError);
@@ -4967,7 +5430,7 @@ void TexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLs
 		{
 			es2::TextureCubeMap *texture = context->getTextureCubeMap();
 
-			GLenum validationError = ValidateSubImageParams(false, false, target, level, xoffset, yoffset, width, height, format, type, texture);
+			GLenum validationError = ValidateSubImageParams(false, false, target, level, xoffset, yoffset, width, height, format, type, texture, context->getClientVersion());
 			if(validationError != GL_NO_ERROR)
 			{
 				return error(validationError);
@@ -4985,6 +5448,11 @@ void TexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLs
 	}
 }
 
+void Uniform1f(GLint location, GLfloat x)
+{
+	glUniform1fv(location, 1, &x);
+}
+
 void Uniform1fv(GLint location, GLsizei count, const GLfloat* v)
 {
 	TRACE("(GLint location = %d, GLsizei count = %d, const GLfloat* v = %p)", location, count, v);
@@ -4994,7 +5462,7 @@ void Uniform1fv(GLint location, GLsizei count, const GLfloat* v)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5017,9 +5485,9 @@ void Uniform1fv(GLint location, GLsizei count, const GLfloat* v)
 	}
 }
 
-void Uniform1f(GLint location, GLfloat x)
+void Uniform1i(GLint location, GLint x)
 {
-	Uniform1fv(location, 1, &x);
+	glUniform1iv(location, 1, &x);
 }
 
 void Uniform1iv(GLint location, GLsizei count, const GLint* v)
@@ -5031,7 +5499,7 @@ void Uniform1iv(GLint location, GLsizei count, const GLint* v)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5054,9 +5522,11 @@ void Uniform1iv(GLint location, GLsizei count, const GLint* v)
 	}
 }
 
-void Uniform1i(GLint location, GLint x)
+void Uniform2f(GLint location, GLfloat x, GLfloat y)
 {
-	Uniform1iv(location, 1, &x);
+	GLfloat xy[2] = {x, y};
+
+	glUniform2fv(location, 1, (GLfloat*)&xy);
 }
 
 void Uniform2fv(GLint location, GLsizei count, const GLfloat* v)
@@ -5068,7 +5538,7 @@ void Uniform2fv(GLint location, GLsizei count, const GLfloat* v)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5091,11 +5561,11 @@ void Uniform2fv(GLint location, GLsizei count, const GLfloat* v)
 	}
 }
 
-void Uniform2f(GLint location, GLfloat x, GLfloat y)
+void Uniform2i(GLint location, GLint x, GLint y)
 {
-	GLfloat xy[2] = {x, y};
+	GLint xy[4] = {x, y};
 
-	Uniform2fv(location, 1, (GLfloat*)&xy);
+	glUniform2iv(location, 1, (GLint*)&xy);
 }
 
 void Uniform2iv(GLint location, GLsizei count, const GLint* v)
@@ -5107,7 +5577,7 @@ void Uniform2iv(GLint location, GLsizei count, const GLint* v)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5130,11 +5600,11 @@ void Uniform2iv(GLint location, GLsizei count, const GLint* v)
 	}
 }
 
-void Uniform2i(GLint location, GLint x, GLint y)
+void Uniform3f(GLint location, GLfloat x, GLfloat y, GLfloat z)
 {
-	GLint xy[4] = {x, y};
+	GLfloat xyz[3] = {x, y, z};
 
-	Uniform2iv(location, 1, (GLint*)&xy);
+	glUniform3fv(location, 1, (GLfloat*)&xyz);
 }
 
 void Uniform3fv(GLint location, GLsizei count, const GLfloat* v)
@@ -5146,7 +5616,7 @@ void Uniform3fv(GLint location, GLsizei count, const GLfloat* v)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5169,11 +5639,11 @@ void Uniform3fv(GLint location, GLsizei count, const GLfloat* v)
 	}
 }
 
-void Uniform3f(GLint location, GLfloat x, GLfloat y, GLfloat z)
+void Uniform3i(GLint location, GLint x, GLint y, GLint z)
 {
-	GLfloat xyz[3] = {x, y, z};
+	GLint xyz[3] = {x, y, z};
 
-	Uniform3fv(location, 1, (GLfloat*)&xyz);
+	glUniform3iv(location, 1, (GLint*)&xyz);
 }
 
 void Uniform3iv(GLint location, GLsizei count, const GLint* v)
@@ -5185,7 +5655,7 @@ void Uniform3iv(GLint location, GLsizei count, const GLint* v)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5208,11 +5678,11 @@ void Uniform3iv(GLint location, GLsizei count, const GLint* v)
 	}
 }
 
-void Uniform3i(GLint location, GLint x, GLint y, GLint z)
+void Uniform4f(GLint location, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 {
-	GLint xyz[3] = {x, y, z};
+	GLfloat xyzw[4] = {x, y, z, w};
 
-	Uniform3iv(location, 1, (GLint*)&xyz);
+	glUniform4fv(location, 1, (GLfloat*)&xyzw);
 }
 
 void Uniform4fv(GLint location, GLsizei count, const GLfloat* v)
@@ -5224,7 +5694,7 @@ void Uniform4fv(GLint location, GLsizei count, const GLfloat* v)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5247,11 +5717,11 @@ void Uniform4fv(GLint location, GLsizei count, const GLfloat* v)
 	}
 }
 
-void Uniform4f(GLint location, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
+void Uniform4i(GLint location, GLint x, GLint y, GLint z, GLint w)
 {
-	GLfloat xyzw[4] = {x, y, z, w};
+	GLint xyzw[4] = {x, y, z, w};
 
-	Uniform4fv(location, 1, (GLfloat*)&xyzw);
+	glUniform4iv(location, 1, (GLint*)&xyzw);
 }
 
 void Uniform4iv(GLint location, GLsizei count, const GLint* v)
@@ -5263,7 +5733,7 @@ void Uniform4iv(GLint location, GLsizei count, const GLint* v)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5286,13 +5756,6 @@ void Uniform4iv(GLint location, GLsizei count, const GLint* v)
 	}
 }
 
-void Uniform4i(GLint location, GLint x, GLint y, GLint z, GLint w)
-{
-	GLint xyzw[4] = {x, y, z, w};
-
-	Uniform4iv(location, 1, (GLint*)&xyzw);
-}
-
 void UniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat* value)
 {
 	TRACE("(GLint location = %d, GLsizei count = %d, GLboolean transpose = %d, const GLfloat* value = %p)",
@@ -5303,10 +5766,15 @@ void UniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const 
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
+		if(context->getClientVersion() < 3 && transpose != GL_FALSE)
+		{
+			return error(GL_INVALID_VALUE);
+		}
+
 		es2::Program *program = context->getCurrentProgram();
 
 		if(!program)
@@ -5336,10 +5804,15 @@ void UniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const 
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
+		if(context->getClientVersion() < 3 && transpose != GL_FALSE)
+		{
+			return error(GL_INVALID_VALUE);
+		}
+
 		es2::Program *program = context->getCurrentProgram();
 
 		if(!program)
@@ -5369,10 +5842,15 @@ void UniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const 
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
+		if(context->getClientVersion() < 3 && transpose != GL_FALSE)
+		{
+			return error(GL_INVALID_VALUE);
+		}
+
 		es2::Program *program = context->getCurrentProgram();
 
 		if(!program)
@@ -5396,7 +5874,7 @@ void UseProgram(GLuint program)
 {
 	TRACE("(GLuint program = %d)", program);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5433,7 +5911,7 @@ void ValidateProgram(GLuint program)
 {
 	TRACE("(GLuint program = %d)", program);
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5464,7 +5942,7 @@ void VertexAttrib1f(GLuint index, GLfloat x)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5482,7 +5960,7 @@ void VertexAttrib1fv(GLuint index, const GLfloat* values)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5500,7 +5978,7 @@ void VertexAttrib2f(GLuint index, GLfloat x, GLfloat y)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5518,7 +5996,7 @@ void VertexAttrib2fv(GLuint index, const GLfloat* values)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5536,7 +6014,7 @@ void VertexAttrib3f(GLuint index, GLfloat x, GLfloat y, GLfloat z)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5554,7 +6032,7 @@ void VertexAttrib3fv(GLuint index, const GLfloat* values)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5572,7 +6050,7 @@ void VertexAttrib4f(GLuint index, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5590,7 +6068,7 @@ void VertexAttrib4fv(GLuint index, const GLfloat* values)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5614,6 +6092,8 @@ void VertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normal
 		return error(GL_INVALID_VALUE);
 	}
 
+	GLint clientVersion = egl::getClientVersion();
+
 	switch(type)
 	{
 	case GL_BYTE:
@@ -5624,16 +6104,25 @@ void VertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normal
 	case GL_FLOAT:
 	case GL_HALF_FLOAT_OES:   // GL_OES_vertex_half_float
 	case GL_HALF_FLOAT:
-	case GL_INT:
-	case GL_UNSIGNED_INT:
 		break;
 	case GL_INT_2_10_10_10_REV:
 	case GL_UNSIGNED_INT_2_10_10_10_REV:
-		if(size != 4)
+		if(clientVersion >= 3)
 		{
-			return error(GL_INVALID_OPERATION);
+			if(size != 4)
+			{
+				return error(GL_INVALID_OPERATION);
+			}
+			break;
 		}
-		break;
+		else return error(GL_INVALID_ENUM);
+	case GL_INT:
+	case GL_UNSIGNED_INT:
+		if(clientVersion >= 3)
+		{
+			break;
+		}
+		else return error(GL_INVALID_ENUM);
 	default:
 		return error(GL_INVALID_ENUM);
 	}
@@ -5643,7 +6132,7 @@ void VertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normal
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5655,7 +6144,7 @@ void VertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normal
 			return error(GL_INVALID_OPERATION);
 		}
 
-		context->setVertexAttribState(index, context->getArrayBuffer(), size, type, (normalized != GL_FALSE), false, stride, ptr);
+		context->setVertexAttribState(index, context->getArrayBuffer(), size, type, (normalized == GL_TRUE), false, stride, ptr);
 	}
 }
 
@@ -5668,7 +6157,7 @@ void Viewport(GLint x, GLint y, GLsizei width, GLsizei height)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5676,7 +6165,7 @@ void Viewport(GLint x, GLint y, GLsizei width, GLsizei height)
 	}
 }
 
-static void BlitFramebufferSW(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter, bool allowPartialDepthStencilBlit)
+static void BlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter, bool allowPartialDepthStencilBlit)
 {
 	TRACE("(GLint srcX0 = %d, GLint srcY0 = %d, GLint srcX1 = %d, GLint srcY1 = %d, "
 	      "GLint dstX0 = %d, GLint dstY0 = %d, GLint dstX1 = %d, GLint dstY1 = %d, "
@@ -5696,7 +6185,7 @@ static void BlitFramebufferSW(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5712,7 +6201,7 @@ static void BlitFramebufferSW(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1
 
 void BlitFramebufferNV(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter)
 {
-	BlitFramebufferSW(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter, true);
+	BlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter, true);
 }
 
 void BlitFramebufferANGLE(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1,
@@ -5724,7 +6213,7 @@ void BlitFramebufferANGLE(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GL
 		return error(GL_INVALID_OPERATION);
 	}
 
-	BlitFramebufferSW(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter, false);
+	BlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter, false);
 }
 
 void TexImage3DOES(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth,
@@ -5756,7 +6245,7 @@ void TexImage3DOES(GLenum target, GLint level, GLenum internalformat, GLsizei wi
 		return error(GL_INVALID_OPERATION);
 	}
 
-	GLenum validationError = ValidateTextureFormatType(format, type, internalformat, target);
+	GLenum validationError = ValidateTextureFormatType(format, type, internalformat, target, egl::getClientVersion());
 	if(validationError != GL_NO_ERROR)
 	{
 		return error(validationError);
@@ -5767,7 +6256,7 @@ void TexImage3DOES(GLenum target, GLint level, GLenum internalformat, GLsizei wi
 		return error(GL_INVALID_VALUE);
 	}
 
-	const GLsizei maxSize3D = es2::IMPLEMENTATION_MAX_3D_TEXTURE_SIZE >> level;
+	const GLsizei maxSize3D = es2::IMPLEMENTATION_MAX_TEXTURE_SIZE >> level;
 	if((width < 0) || (height < 0) || (depth < 0) || (width > maxSize3D) || (height > maxSize3D) || (depth > maxSize3D))
 	{
 		return error(GL_INVALID_VALUE);
@@ -5778,7 +6267,7 @@ void TexImage3DOES(GLenum target, GLint level, GLenum internalformat, GLsizei wi
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5825,13 +6314,13 @@ void TexSubImage3DOES(GLenum target, GLint level, GLint xoffset, GLint yoffset, 
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
 		es2::Texture3D *texture = context->getTexture3D();
 
-		GLenum validationError = ValidateSubImageParams(false, false, target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, texture);
+		GLenum validationError = ValidateSubImageParams(false, false, target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, texture, context->getClientVersion());
 		if(validationError != GL_NO_ERROR)
 		{
 			return error(validationError);
@@ -5866,7 +6355,7 @@ void CopyTexSubImage3DOES(GLenum target, GLint level, GLint xoffset, GLint yoffs
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5886,7 +6375,7 @@ void CopyTexSubImage3DOES(GLenum target, GLint level, GLint xoffset, GLint yoffs
 
 		es2::Texture3D *texture = context->getTexture3D();
 
-		GLenum validationError = ValidateSubImageParams(false, true, target, level, xoffset, yoffset, zoffset, width, height, 1, GL_NONE, GL_NONE, texture);
+		GLenum validationError = ValidateSubImageParams(false, true, target, level, xoffset, yoffset, zoffset, width, height, 1, GL_NONE, GL_NONE, texture, context->getClientVersion());
 		if(validationError != GL_NO_ERROR)
 		{
 			return error(validationError);
@@ -5915,13 +6404,13 @@ void CompressedTexImage3DOES(GLenum target, GLint level, GLenum internalformat, 
 		return error(GL_INVALID_VALUE);
 	}
 
-	const GLsizei maxSize3D = es2::IMPLEMENTATION_MAX_3D_TEXTURE_SIZE >> level;
+	const GLsizei maxSize3D = es2::IMPLEMENTATION_MAX_TEXTURE_SIZE >> level;
 	if((width < 0) || (height < 0) || (depth < 0) || (width > maxSize3D) || (height > maxSize3D) || (depth > maxSize3D) ||(border != 0) || (imageSize < 0))
 	{
 		return error(GL_INVALID_VALUE);
 	}
 
-	if(!IsCompressed(internalformat))
+	if(!IsCompressed(internalformat, egl::getClientVersion()))
 	{
 		return error(GL_INVALID_ENUM);
 	}
@@ -5931,7 +6420,7 @@ void CompressedTexImage3DOES(GLenum target, GLint level, GLenum internalformat, 
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -5978,7 +6467,7 @@ void CompressedTexSubImage3DOES(GLenum target, GLint level, GLint xoffset, GLint
 		return error(GL_INVALID_VALUE);
 	}
 
-	if(!IsCompressed(format))
+	if(!IsCompressed(format, egl::getClientVersion()))
 	{
 		return error(GL_INVALID_ENUM);
 	}
@@ -5988,7 +6477,7 @@ void CompressedTexSubImage3DOES(GLenum target, GLint level, GLint xoffset, GLint
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -6019,7 +6508,7 @@ void FramebufferTexture3DOES(GLenum target, GLenum attachment, GLenum textarget,
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -6036,6 +6525,11 @@ void FramebufferTexture3DOES(GLenum target, GLenum attachment, GLenum textarget,
 				return error(GL_INVALID_OPERATION);
 			}
 
+			if(tex->isCompressed(textarget, level))
+			{
+				return error(GL_INVALID_OPERATION);
+			}
+
 			switch(textarget)
 			{
 			case GL_TEXTURE_3D:
@@ -6048,14 +6542,9 @@ void FramebufferTexture3DOES(GLenum target, GLenum attachment, GLenum textarget,
 				return error(GL_INVALID_ENUM);
 			}
 
-			if((level < 0) || (level >= es2::IMPLEMENTATION_MAX_TEXTURE_LEVELS))
+			if(level != 0)
 			{
 				return error(GL_INVALID_VALUE);
-			}
-
-			if(tex->isCompressed(textarget, level))
-			{
-				return error(GL_INVALID_OPERATION);
 			}
 		}
 
@@ -6077,23 +6566,57 @@ void FramebufferTexture3DOES(GLenum target, GLenum attachment, GLenum textarget,
 			return error(GL_INVALID_OPERATION);
 		}
 
+		GLint clientVersion = context->getClientVersion();
+
 		switch(attachment)
 		{
-		case GL_DEPTH_ATTACHMENT:   framebuffer->setDepthbuffer(textarget, texture, level);   break;
-		case GL_STENCIL_ATTACHMENT: framebuffer->setStencilbuffer(textarget, texture, level); break;
-		default:
-			if(attachment < GL_COLOR_ATTACHMENT0 || attachment > GL_COLOR_ATTACHMENT31)
+		case GL_COLOR_ATTACHMENT1:
+		case GL_COLOR_ATTACHMENT2:
+		case GL_COLOR_ATTACHMENT3:
+		case GL_COLOR_ATTACHMENT4:
+		case GL_COLOR_ATTACHMENT5:
+		case GL_COLOR_ATTACHMENT6:
+		case GL_COLOR_ATTACHMENT7:
+		case GL_COLOR_ATTACHMENT8:
+		case GL_COLOR_ATTACHMENT9:
+		case GL_COLOR_ATTACHMENT10:
+		case GL_COLOR_ATTACHMENT11:
+		case GL_COLOR_ATTACHMENT12:
+		case GL_COLOR_ATTACHMENT13:
+		case GL_COLOR_ATTACHMENT14:
+		case GL_COLOR_ATTACHMENT15:
+		case GL_COLOR_ATTACHMENT16:
+		case GL_COLOR_ATTACHMENT17:
+		case GL_COLOR_ATTACHMENT18:
+		case GL_COLOR_ATTACHMENT19:
+		case GL_COLOR_ATTACHMENT20:
+		case GL_COLOR_ATTACHMENT21:
+		case GL_COLOR_ATTACHMENT22:
+		case GL_COLOR_ATTACHMENT23:
+		case GL_COLOR_ATTACHMENT24:
+		case GL_COLOR_ATTACHMENT25:
+		case GL_COLOR_ATTACHMENT26:
+		case GL_COLOR_ATTACHMENT27:
+		case GL_COLOR_ATTACHMENT28:
+		case GL_COLOR_ATTACHMENT29:
+		case GL_COLOR_ATTACHMENT30:
+		case GL_COLOR_ATTACHMENT31:
+			if(clientVersion < 3)
 			{
 				return error(GL_INVALID_ENUM);
 			}
-
+			// fall through
+		case GL_COLOR_ATTACHMENT0:
 			if((attachment - GL_COLOR_ATTACHMENT0) >= MAX_COLOR_ATTACHMENTS)
 			{
-				return error(GL_INVALID_OPERATION);
+				return error(GL_INVALID_ENUM);
 			}
-
-			framebuffer->setColorbuffer(textarget, texture, attachment - GL_COLOR_ATTACHMENT0, level);
+			framebuffer->setColorbuffer(textarget, texture, attachment - GL_COLOR_ATTACHMENT0);
 			break;
+		case GL_DEPTH_ATTACHMENT:   framebuffer->setDepthbuffer(textarget, texture);   break;
+		case GL_STENCIL_ATTACHMENT: framebuffer->setStencilbuffer(textarget, texture); break;
+		default:
+			return error(GL_INVALID_ENUM);
 		}
 	}
 }
@@ -6117,7 +6640,7 @@ void EGLImageTargetTexture2DOES(GLenum target, GLeglImageOES image)
 		return error(GL_INVALID_ENUM);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -6230,7 +6753,7 @@ void DrawBuffersEXT(GLsizei n, const GLenum *bufs)
 		return error(GL_INVALID_VALUE);
 	}
 
-	auto context = es2::getContext();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{
@@ -6299,8 +6822,6 @@ void DrawBuffersEXT(GLsizei n, const GLenum *bufs)
 
 }
 
-#include "entry_points.h"
-
 extern "C" NO_SANITIZE_FUNCTION __eglMustCastToProperFunctionPointerType es2GetProcAddress(const char *procname)
 {
 	struct Function
@@ -6309,301 +6830,305 @@ extern "C" NO_SANITIZE_FUNCTION __eglMustCastToProperFunctionPointerType es2GetP
 		__eglMustCastToProperFunctionPointerType address;
 	};
 
+	struct CompareFunctor
+	{
+		bool operator()(const Function &a, const Function &b) const
+		{
+			return strcmp(a.name, b.name) < 0;
+		}
+	};
+
+	// This array must be kept sorted with respect to strcmp(), so that binary search works correctly.
+	// The Unix command "LC_COLLATE=C sort" will generate the correct order.
 	static const Function glFunctions[] =
 	{
-		#define FUNCTION(name) {"gl" #name, (__eglMustCastToProperFunctionPointerType)gl::name}
+		#define FUNCTION(name) {#name, (__eglMustCastToProperFunctionPointerType)name}
 
-		FUNCTION(ActiveTexture),
-		FUNCTION(AttachShader),
-		FUNCTION(BeginQuery),
-		FUNCTION(BeginQueryEXT),
-		FUNCTION(BeginTransformFeedback),
-		FUNCTION(BindAttribLocation),
-		FUNCTION(BindBuffer),
-		FUNCTION(BindBufferBase),
-		FUNCTION(BindBufferRange),
-		FUNCTION(BindFramebuffer),
-		FUNCTION(BindFramebufferOES),
-		FUNCTION(BindRenderbuffer),
-		FUNCTION(BindRenderbufferOES),
-		FUNCTION(BindSampler),
-		FUNCTION(BindTexture),
-		FUNCTION(BindTransformFeedback),
-		FUNCTION(BindVertexArray),
-		FUNCTION(BindVertexArrayOES),
-		FUNCTION(BlendColor),
-		FUNCTION(BlendEquation),
-		FUNCTION(BlendEquationSeparate),
-		FUNCTION(BlendFunc),
-		FUNCTION(BlendFuncSeparate),
-		FUNCTION(BlitFramebuffer),
-		FUNCTION(BlitFramebufferANGLE),
-		FUNCTION(BufferData),
-		FUNCTION(BufferSubData),
-		FUNCTION(CheckFramebufferStatus),
-		FUNCTION(CheckFramebufferStatusOES),
-		FUNCTION(Clear),
-		FUNCTION(ClearBufferfi),
-		FUNCTION(ClearBufferfv),
-		FUNCTION(ClearBufferiv),
-		FUNCTION(ClearBufferuiv),
-		FUNCTION(ClearColor),
-		FUNCTION(ClearDepthf),
-		FUNCTION(ClearStencil),
-		FUNCTION(ClientWaitSync),
-		FUNCTION(ColorMask),
-		FUNCTION(CompileShader),
-		FUNCTION(CompressedTexImage2D),
-		FUNCTION(CompressedTexImage3D),
-		FUNCTION(CompressedTexSubImage2D),
-		FUNCTION(CompressedTexSubImage3D),
-		FUNCTION(CopyBufferSubData),
-		FUNCTION(CopyTexImage2D),
-		FUNCTION(CopyTexSubImage2D),
-		FUNCTION(CopyTexSubImage3D),
-		FUNCTION(CreateProgram),
-		FUNCTION(CreateShader),
-		FUNCTION(CullFace),
-		FUNCTION(DeleteBuffers),
-		FUNCTION(DeleteFencesNV),
-		FUNCTION(DeleteFramebuffers),
-		FUNCTION(DeleteFramebuffersOES),
-		FUNCTION(DeleteProgram),
-		FUNCTION(DeleteQueries),
-		FUNCTION(DeleteQueriesEXT),
-		FUNCTION(DeleteRenderbuffers),
-		FUNCTION(DeleteRenderbuffersOES),
-		FUNCTION(DeleteSamplers),
-		FUNCTION(DeleteShader),
-		FUNCTION(DeleteSync),
-		FUNCTION(DeleteTextures),
-		FUNCTION(DeleteTransformFeedbacks),
-		FUNCTION(DeleteVertexArrays),
-		FUNCTION(DeleteVertexArraysOES),
-		FUNCTION(DepthFunc),
-		FUNCTION(DepthMask),
-		FUNCTION(DepthRangef),
-		FUNCTION(DetachShader),
-		FUNCTION(Disable),
-		FUNCTION(DisableVertexAttribArray),
-		FUNCTION(DrawArrays),
-		FUNCTION(DrawArraysInstanced),
-		FUNCTION(DrawBuffers),
-		FUNCTION(DrawBuffersEXT),
-		FUNCTION(DrawElements),
-		FUNCTION(DrawElementsInstanced),
-		FUNCTION(DrawRangeElements),
-		FUNCTION(EGLImageTargetRenderbufferStorageOES),
-		FUNCTION(EGLImageTargetTexture2DOES),
-		FUNCTION(Enable),
-		FUNCTION(EnableVertexAttribArray),
-		FUNCTION(EndQuery),
-		FUNCTION(EndQueryEXT),
-		FUNCTION(EndTransformFeedback),
-		FUNCTION(FenceSync),
-		FUNCTION(Finish),
-		FUNCTION(FinishFenceNV),
-		FUNCTION(Flush),
-		FUNCTION(FlushMappedBufferRange),
-		FUNCTION(FramebufferRenderbuffer),
-		FUNCTION(FramebufferRenderbufferOES),
-		FUNCTION(FramebufferTexture2D),
-		FUNCTION(FramebufferTexture2DOES),
-		FUNCTION(FramebufferTextureLayer),
-		FUNCTION(FrontFace),
-		FUNCTION(GenBuffers),
-		FUNCTION(GenFencesNV),
-		FUNCTION(GenFramebuffers),
-		FUNCTION(GenFramebuffersOES),
-		FUNCTION(GenQueries),
-		FUNCTION(GenQueriesEXT),
-		FUNCTION(GenRenderbuffers),
-		FUNCTION(GenRenderbuffersOES),
-		FUNCTION(GenSamplers),
-		FUNCTION(GenTextures),
-		FUNCTION(GenTransformFeedbacks),
-		FUNCTION(GenVertexArrays),
-		FUNCTION(GenVertexArraysOES),
-		FUNCTION(GenerateMipmap),
-		FUNCTION(GenerateMipmapOES),
-		FUNCTION(GetActiveAttrib),
-		FUNCTION(GetActiveUniform),
-		FUNCTION(GetActiveUniformBlockName),
-		FUNCTION(GetActiveUniformBlockiv),
-		FUNCTION(GetActiveUniformsiv),
-		FUNCTION(GetAttachedShaders),
-		FUNCTION(GetAttribLocation),
-		FUNCTION(GetBooleanv),
-		FUNCTION(GetBufferParameteri64v),
-		FUNCTION(GetBufferParameteriv),
-		FUNCTION(GetBufferPointerv),
-		FUNCTION(GetError),
-		FUNCTION(GetFenceivNV),
-		FUNCTION(GetFloatv),
-		FUNCTION(GetFragDataLocation),
-		FUNCTION(GetFramebufferAttachmentParameteriv),
-		FUNCTION(GetFramebufferAttachmentParameterivOES),
-		FUNCTION(GetGraphicsResetStatusEXT),
-		FUNCTION(GetInteger64i_v),
-		FUNCTION(GetInteger64v),
-		FUNCTION(GetIntegeri_v),
-		FUNCTION(GetIntegerv),
-		FUNCTION(GetInternalformativ),
-		FUNCTION(GetProgramBinary),
-		FUNCTION(GetProgramInfoLog),
-		FUNCTION(GetProgramiv),
-		FUNCTION(GetQueryObjectuiv),
-		FUNCTION(GetQueryObjectuivEXT),
-		FUNCTION(GetQueryiv),
-		FUNCTION(GetQueryivEXT),
-		FUNCTION(GetRenderbufferParameteriv),
-		FUNCTION(GetRenderbufferParameterivOES),
-		FUNCTION(GetSamplerParameterfv),
-		FUNCTION(GetSamplerParameteriv),
-		FUNCTION(GetShaderInfoLog),
-		FUNCTION(GetShaderPrecisionFormat),
-		FUNCTION(GetShaderSource),
-		FUNCTION(GetShaderiv),
-		FUNCTION(GetString),
-		FUNCTION(GetStringi),
-		FUNCTION(GetSynciv),
-		FUNCTION(GetTexParameterfv),
-		FUNCTION(GetTexParameteriv),
-		FUNCTION(GetTransformFeedbackVarying),
-		FUNCTION(GetUniformBlockIndex),
-		FUNCTION(GetUniformIndices),
-		FUNCTION(GetUniformLocation),
-		FUNCTION(GetUniformfv),
-		FUNCTION(GetUniformiv),
-		FUNCTION(GetUniformuiv),
-		FUNCTION(GetVertexAttribIiv),
-		FUNCTION(GetVertexAttribIuiv),
-		FUNCTION(GetVertexAttribPointerv),
-		FUNCTION(GetVertexAttribfv),
-		FUNCTION(GetVertexAttribiv),
-		FUNCTION(GetnUniformfvEXT),
-		FUNCTION(GetnUniformivEXT),
-		FUNCTION(Hint),
-		FUNCTION(InvalidateFramebuffer),
-		FUNCTION(InvalidateSubFramebuffer),
-		FUNCTION(IsBuffer),
-		FUNCTION(IsEnabled),
-		FUNCTION(IsFenceNV),
-		FUNCTION(IsFramebuffer),
-		FUNCTION(IsFramebufferOES),
-		FUNCTION(IsProgram),
-		FUNCTION(IsQuery),
-		FUNCTION(IsQueryEXT),
-		FUNCTION(IsRenderbuffer),
-		FUNCTION(IsRenderbufferOES),
-		FUNCTION(IsSampler),
-		FUNCTION(IsShader),
-		FUNCTION(IsSync),
-		FUNCTION(IsTexture),
-		FUNCTION(IsTransformFeedback),
-		FUNCTION(IsVertexArray),
-		FUNCTION(IsVertexArrayOES),
-		FUNCTION(LineWidth),
-		FUNCTION(LinkProgram),
-		FUNCTION(MapBufferRange),
-		FUNCTION(PauseTransformFeedback),
-		FUNCTION(PixelStorei),
-		FUNCTION(PolygonOffset),
-		FUNCTION(ProgramBinary),
-		FUNCTION(ProgramParameteri),
-		FUNCTION(ReadBuffer),
-		FUNCTION(ReadPixels),
-		FUNCTION(ReadnPixelsEXT),
-		FUNCTION(ReleaseShaderCompiler),
-		FUNCTION(RenderbufferStorage),
-		FUNCTION(RenderbufferStorageMultisample),
-		FUNCTION(RenderbufferStorageMultisampleANGLE),
-		FUNCTION(RenderbufferStorageOES),
-		FUNCTION(ResumeTransformFeedback),
-		FUNCTION(SampleCoverage),
-		FUNCTION(SamplerParameterf),
-		FUNCTION(SamplerParameterfv),
-		FUNCTION(SamplerParameteri),
-		FUNCTION(SamplerParameteriv),
-		FUNCTION(Scissor),
-		FUNCTION(SetFenceNV),
-		FUNCTION(ShaderBinary),
-		FUNCTION(ShaderSource),
-		FUNCTION(StencilFunc),
-		FUNCTION(StencilFuncSeparate),
-		FUNCTION(StencilMask),
-		FUNCTION(StencilMaskSeparate),
-		FUNCTION(StencilOp),
-		FUNCTION(StencilOpSeparate),
-		FUNCTION(TestFenceNV),
-		FUNCTION(TexImage2D),
-		FUNCTION(TexImage3D),
-		FUNCTION(TexImage3DOES),
-		FUNCTION(TexParameterf),
-		FUNCTION(TexParameterfv),
-		FUNCTION(TexParameteri),
-		FUNCTION(TexParameteriv),
-		FUNCTION(TexStorage2D),
-		FUNCTION(TexStorage3D),
-		FUNCTION(TexSubImage2D),
-		FUNCTION(TexSubImage3D),
-		FUNCTION(TransformFeedbackVaryings),
-		FUNCTION(Uniform1f),
-		FUNCTION(Uniform1fv),
-		FUNCTION(Uniform1i),
-		FUNCTION(Uniform1iv),
-		FUNCTION(Uniform1ui),
-		FUNCTION(Uniform1uiv),
-		FUNCTION(Uniform2f),
-		FUNCTION(Uniform2fv),
-		FUNCTION(Uniform2i),
-		FUNCTION(Uniform2iv),
-		FUNCTION(Uniform2ui),
-		FUNCTION(Uniform2uiv),
-		FUNCTION(Uniform3f),
-		FUNCTION(Uniform3fv),
-		FUNCTION(Uniform3i),
-		FUNCTION(Uniform3iv),
-		FUNCTION(Uniform3ui),
-		FUNCTION(Uniform3uiv),
-		FUNCTION(Uniform4f),
-		FUNCTION(Uniform4fv),
-		FUNCTION(Uniform4i),
-		FUNCTION(Uniform4iv),
-		FUNCTION(Uniform4ui),
-		FUNCTION(Uniform4uiv),
-		FUNCTION(UniformBlockBinding),
-		FUNCTION(UniformMatrix2fv),
-		FUNCTION(UniformMatrix2x3fv),
-		FUNCTION(UniformMatrix2x4fv),
-		FUNCTION(UniformMatrix3fv),
-		FUNCTION(UniformMatrix3x2fv),
-		FUNCTION(UniformMatrix3x4fv),
-		FUNCTION(UniformMatrix4fv),
-		FUNCTION(UniformMatrix4x2fv),
-		FUNCTION(UniformMatrix4x3fv),
-		FUNCTION(UnmapBuffer),
-		FUNCTION(UseProgram),
-		FUNCTION(ValidateProgram),
-		FUNCTION(VertexAttrib1f),
-		FUNCTION(VertexAttrib1fv),
-		FUNCTION(VertexAttrib2f),
-		FUNCTION(VertexAttrib2fv),
-		FUNCTION(VertexAttrib3f),
-		FUNCTION(VertexAttrib3fv),
-		FUNCTION(VertexAttrib4f),
-		FUNCTION(VertexAttrib4fv),
-		FUNCTION(VertexAttribDivisor),
-		FUNCTION(VertexAttribDivisorANGLE),
-		FUNCTION(VertexAttribDivisorEXT),
-		FUNCTION(VertexAttribI4i),
-		FUNCTION(VertexAttribI4iv),
-		FUNCTION(VertexAttribI4ui),
-		FUNCTION(VertexAttribI4uiv),
-		FUNCTION(VertexAttribIPointer),
-		FUNCTION(VertexAttribPointer),
-		FUNCTION(Viewport),
-		FUNCTION(WaitSync),
+		FUNCTION(glActiveTexture),
+		FUNCTION(glAttachShader),
+		FUNCTION(glBeginQuery),
+		FUNCTION(glBeginQueryEXT),
+		FUNCTION(glBeginTransformFeedback),
+		FUNCTION(glBindAttribLocation),
+		FUNCTION(glBindBuffer),
+		FUNCTION(glBindBufferBase),
+		FUNCTION(glBindBufferRange),
+		FUNCTION(glBindFramebuffer),
+		FUNCTION(glBindFramebufferOES),
+		FUNCTION(glBindRenderbuffer),
+		FUNCTION(glBindRenderbufferOES),
+		FUNCTION(glBindSampler),
+		FUNCTION(glBindTexture),
+		FUNCTION(glBindTransformFeedback),
+		FUNCTION(glBindVertexArray),
+		FUNCTION(glBlendColor),
+		FUNCTION(glBlendEquation),
+		FUNCTION(glBlendEquationSeparate),
+		FUNCTION(glBlendFunc),
+		FUNCTION(glBlendFuncSeparate),
+		FUNCTION(glBlitFramebuffer),
+		FUNCTION(glBlitFramebufferANGLE),
+		FUNCTION(glBufferData),
+		FUNCTION(glBufferSubData),
+		FUNCTION(glCheckFramebufferStatus),
+		FUNCTION(glCheckFramebufferStatusOES),
+		FUNCTION(glClear),
+		FUNCTION(glClearBufferfi),
+		FUNCTION(glClearBufferfv),
+		FUNCTION(glClearBufferiv),
+		FUNCTION(glClearBufferuiv),
+		FUNCTION(glClearColor),
+		FUNCTION(glClearDepthf),
+		FUNCTION(glClearStencil),
+		FUNCTION(glClientWaitSync),
+		FUNCTION(glColorMask),
+		FUNCTION(glCompileShader),
+		FUNCTION(glCompressedTexImage2D),
+		FUNCTION(glCompressedTexImage3D),
+		FUNCTION(glCompressedTexSubImage2D),
+		FUNCTION(glCompressedTexSubImage3D),
+		FUNCTION(glCopyBufferSubData),
+		FUNCTION(glCopyTexImage2D),
+		FUNCTION(glCopyTexSubImage2D),
+		FUNCTION(glCopyTexSubImage3D),
+		FUNCTION(glCreateProgram),
+		FUNCTION(glCreateShader),
+		FUNCTION(glCullFace),
+		FUNCTION(glDeleteBuffers),
+		FUNCTION(glDeleteFencesNV),
+		FUNCTION(glDeleteFramebuffers),
+		FUNCTION(glDeleteFramebuffersOES),
+		FUNCTION(glDeleteProgram),
+		FUNCTION(glDeleteQueries),
+		FUNCTION(glDeleteQueriesEXT),
+		FUNCTION(glDeleteRenderbuffers),
+		FUNCTION(glDeleteRenderbuffersOES),
+		FUNCTION(glDeleteSamplers),
+		FUNCTION(glDeleteShader),
+		FUNCTION(glDeleteSync),
+		FUNCTION(glDeleteTextures),
+		FUNCTION(glDeleteTransformFeedbacks),
+		FUNCTION(glDeleteVertexArrays),
+		FUNCTION(glDepthFunc),
+		FUNCTION(glDepthMask),
+		FUNCTION(glDepthRangef),
+		FUNCTION(glDetachShader),
+		FUNCTION(glDisable),
+		FUNCTION(glDisableVertexAttribArray),
+		FUNCTION(glDrawArrays),
+		FUNCTION(glDrawArraysInstanced),
+		FUNCTION(glDrawBuffers),
+		FUNCTION(glDrawBuffersEXT),
+		FUNCTION(glDrawElements),
+		FUNCTION(glDrawElementsInstanced),
+		FUNCTION(glDrawRangeElements),
+		FUNCTION(glEGLImageTargetRenderbufferStorageOES),
+		FUNCTION(glEGLImageTargetTexture2DOES),
+		FUNCTION(glEnable),
+		FUNCTION(glEnableVertexAttribArray),
+		FUNCTION(glEndQuery),
+		FUNCTION(glEndQueryEXT),
+		FUNCTION(glEndTransformFeedback),
+		FUNCTION(glFenceSync),
+		FUNCTION(glFinish),
+		FUNCTION(glFinishFenceNV),
+		FUNCTION(glFlush),
+		FUNCTION(glFlushMappedBufferRange),
+		FUNCTION(glFramebufferRenderbuffer),
+		FUNCTION(glFramebufferRenderbufferOES),
+		FUNCTION(glFramebufferTexture2D),
+		FUNCTION(glFramebufferTexture2DOES),
+		FUNCTION(glFramebufferTextureLayer),
+		FUNCTION(glFrontFace),
+		FUNCTION(glGenBuffers),
+		FUNCTION(glGenFencesNV),
+		FUNCTION(glGenFramebuffers),
+		FUNCTION(glGenFramebuffersOES),
+		FUNCTION(glGenQueries),
+		FUNCTION(glGenQueriesEXT),
+		FUNCTION(glGenRenderbuffers),
+		FUNCTION(glGenRenderbuffersOES),
+		FUNCTION(glGenSamplers),
+		FUNCTION(glGenTextures),
+		FUNCTION(glGenTransformFeedbacks),
+		FUNCTION(glGenVertexArrays),
+		FUNCTION(glGenerateMipmap),
+		FUNCTION(glGenerateMipmapOES),
+		FUNCTION(glGetActiveAttrib),
+		FUNCTION(glGetActiveUniform),
+		FUNCTION(glGetActiveUniformBlockName),
+		FUNCTION(glGetActiveUniformBlockiv),
+		FUNCTION(glGetActiveUniformsiv),
+		FUNCTION(glGetAttachedShaders),
+		FUNCTION(glGetAttribLocation),
+		FUNCTION(glGetBooleanv),
+		FUNCTION(glGetBufferParameteri64v),
+		FUNCTION(glGetBufferParameteriv),
+		FUNCTION(glGetBufferPointerv),
+		FUNCTION(glGetError),
+		FUNCTION(glGetFenceivNV),
+		FUNCTION(glGetFloatv),
+		FUNCTION(glGetFragDataLocation),
+		FUNCTION(glGetFramebufferAttachmentParameteriv),
+		FUNCTION(glGetFramebufferAttachmentParameterivOES),
+		FUNCTION(glGetGraphicsResetStatusEXT),
+		FUNCTION(glGetInteger64i_v),
+		FUNCTION(glGetInteger64v),
+		FUNCTION(glGetIntegeri_v),
+		FUNCTION(glGetIntegerv),
+		FUNCTION(glGetInternalformativ),
+		FUNCTION(glGetProgramBinary),
+		FUNCTION(glGetProgramInfoLog),
+		FUNCTION(glGetProgramiv),
+		FUNCTION(glGetQueryObjectuiv),
+		FUNCTION(glGetQueryObjectuivEXT),
+		FUNCTION(glGetQueryiv),
+		FUNCTION(glGetQueryivEXT),
+		FUNCTION(glGetRenderbufferParameteriv),
+		FUNCTION(glGetRenderbufferParameterivOES),
+		FUNCTION(glGetSamplerParameterfv),
+		FUNCTION(glGetSamplerParameteriv),
+		FUNCTION(glGetShaderInfoLog),
+		FUNCTION(glGetShaderPrecisionFormat),
+		FUNCTION(glGetShaderSource),
+		FUNCTION(glGetShaderiv),
+		FUNCTION(glGetString),
+		FUNCTION(glGetStringi),
+		FUNCTION(glGetSynciv),
+		FUNCTION(glGetTexParameterfv),
+		FUNCTION(glGetTexParameteriv),
+		FUNCTION(glGetTransformFeedbackVarying),
+		FUNCTION(glGetUniformBlockIndex),
+		FUNCTION(glGetUniformIndices),
+		FUNCTION(glGetUniformLocation),
+		FUNCTION(glGetUniformfv),
+		FUNCTION(glGetUniformiv),
+		FUNCTION(glGetUniformuiv),
+		FUNCTION(glGetVertexAttribIiv),
+		FUNCTION(glGetVertexAttribIuiv),
+		FUNCTION(glGetVertexAttribPointerv),
+		FUNCTION(glGetVertexAttribfv),
+		FUNCTION(glGetVertexAttribiv),
+		FUNCTION(glGetnUniformfvEXT),
+		FUNCTION(glGetnUniformivEXT),
+		FUNCTION(glHint),
+		FUNCTION(glInvalidateFramebuffer),
+		FUNCTION(glInvalidateSubFramebuffer),
+		FUNCTION(glIsBuffer),
+		FUNCTION(glIsEnabled),
+		FUNCTION(glIsFenceNV),
+		FUNCTION(glIsFramebuffer),
+		FUNCTION(glIsFramebufferOES),
+		FUNCTION(glIsProgram),
+		FUNCTION(glIsQuery),
+		FUNCTION(glIsQueryEXT),
+		FUNCTION(glIsRenderbuffer),
+		FUNCTION(glIsRenderbufferOES),
+		FUNCTION(glIsSampler),
+		FUNCTION(glIsShader),
+		FUNCTION(glIsSync),
+		FUNCTION(glIsTexture),
+		FUNCTION(glIsTransformFeedback),
+		FUNCTION(glIsVertexArray),
+		FUNCTION(glLineWidth),
+		FUNCTION(glLinkProgram),
+		FUNCTION(glMapBufferRange),
+		FUNCTION(glPauseTransformFeedback),
+		FUNCTION(glPixelStorei),
+		FUNCTION(glPolygonOffset),
+		FUNCTION(glProgramBinary),
+		FUNCTION(glProgramParameteri),
+		FUNCTION(glReadBuffer),
+		FUNCTION(glReadPixels),
+		FUNCTION(glReadnPixelsEXT),
+		FUNCTION(glReleaseShaderCompiler),
+		FUNCTION(glRenderbufferStorage),
+		FUNCTION(glRenderbufferStorageMultisample),
+		FUNCTION(glRenderbufferStorageMultisampleANGLE),
+		FUNCTION(glRenderbufferStorageOES),
+		FUNCTION(glResumeTransformFeedback),
+		FUNCTION(glSampleCoverage),
+		FUNCTION(glSamplerParameterf),
+		FUNCTION(glSamplerParameterfv),
+		FUNCTION(glSamplerParameteri),
+		FUNCTION(glSamplerParameteriv),
+		FUNCTION(glScissor),
+		FUNCTION(glSetFenceNV),
+		FUNCTION(glShaderBinary),
+		FUNCTION(glShaderSource),
+		FUNCTION(glStencilFunc),
+		FUNCTION(glStencilFuncSeparate),
+		FUNCTION(glStencilMask),
+		FUNCTION(glStencilMaskSeparate),
+		FUNCTION(glStencilOp),
+		FUNCTION(glStencilOpSeparate),
+		FUNCTION(glTestFenceNV),
+		FUNCTION(glTexImage2D),
+		FUNCTION(glTexImage3D),
+		FUNCTION(glTexImage3DOES),
+		FUNCTION(glTexParameterf),
+		FUNCTION(glTexParameterfv),
+		FUNCTION(glTexParameteri),
+		FUNCTION(glTexParameteriv),
+		FUNCTION(glTexStorage2D),
+		FUNCTION(glTexStorage3D),
+		FUNCTION(glTexSubImage2D),
+		FUNCTION(glTexSubImage3D),
+		FUNCTION(glTransformFeedbackVaryings),
+		FUNCTION(glUniform1f),
+		FUNCTION(glUniform1fv),
+		FUNCTION(glUniform1i),
+		FUNCTION(glUniform1iv),
+		FUNCTION(glUniform1ui),
+		FUNCTION(glUniform1uiv),
+		FUNCTION(glUniform2f),
+		FUNCTION(glUniform2fv),
+		FUNCTION(glUniform2i),
+		FUNCTION(glUniform2iv),
+		FUNCTION(glUniform2ui),
+		FUNCTION(glUniform2uiv),
+		FUNCTION(glUniform3f),
+		FUNCTION(glUniform3fv),
+		FUNCTION(glUniform3i),
+		FUNCTION(glUniform3iv),
+		FUNCTION(glUniform3ui),
+		FUNCTION(glUniform3uiv),
+		FUNCTION(glUniform4f),
+		FUNCTION(glUniform4fv),
+		FUNCTION(glUniform4i),
+		FUNCTION(glUniform4iv),
+		FUNCTION(glUniform4ui),
+		FUNCTION(glUniform4uiv),
+		FUNCTION(glUniformBlockBinding),
+		FUNCTION(glUniformMatrix2fv),
+		FUNCTION(glUniformMatrix2x3fv),
+		FUNCTION(glUniformMatrix2x4fv),
+		FUNCTION(glUniformMatrix3fv),
+		FUNCTION(glUniformMatrix3x2fv),
+		FUNCTION(glUniformMatrix3x4fv),
+		FUNCTION(glUniformMatrix4fv),
+		FUNCTION(glUniformMatrix4x2fv),
+		FUNCTION(glUniformMatrix4x3fv),
+		FUNCTION(glUnmapBuffer),
+		FUNCTION(glUseProgram),
+		FUNCTION(glValidateProgram),
+		FUNCTION(glVertexAttrib1f),
+		FUNCTION(glVertexAttrib1fv),
+		FUNCTION(glVertexAttrib2f),
+		FUNCTION(glVertexAttrib2fv),
+		FUNCTION(glVertexAttrib3f),
+		FUNCTION(glVertexAttrib3fv),
+		FUNCTION(glVertexAttrib4f),
+		FUNCTION(glVertexAttrib4fv),
+		FUNCTION(glVertexAttribDivisor),
+		FUNCTION(glVertexAttribI4i),
+		FUNCTION(glVertexAttribI4iv),
+		FUNCTION(glVertexAttribI4ui),
+		FUNCTION(glVertexAttribI4uiv),
+		FUNCTION(glVertexAttribIPointer),
+		FUNCTION(glVertexAttribPointer),
+		FUNCTION(glViewport),
+		FUNCTION(glWaitSync),
 
 		#undef FUNCTION
 	};
@@ -6611,29 +7136,12 @@ extern "C" NO_SANITIZE_FUNCTION __eglMustCastToProperFunctionPointerType es2GetP
 	static const size_t numFunctions = sizeof glFunctions / sizeof(Function);
 	static const Function *const glFunctionsEnd = glFunctions + numFunctions;
 
-	// The array must be kept sorted with respect to strcmp(), so that binary search works correctly.
-	// The Unix command "LC_COLLATE=C sort" will generate the correct order.
-	#ifndef NDEBUG
-		for(size_t i = 0; i < numFunctions - 1; i++)
-		{
-			ASSERT(strcmp(glFunctions[i].name, glFunctions[i + 1].name) < 0);
-		}
-	#endif
+	Function needle;
+	needle.name = procname;
 
 	if(procname && strncmp("gl", procname, 2) == 0)
 	{
-		struct CompareFunctor
-		{
-			bool operator()(const Function &a, const Function &b) const
-			{
-				return strcmp(a.name, b.name) < 0;
-			}
-		};
-
-		Function needle;
-		needle.name = procname;
 		const Function *result = std::lower_bound(glFunctions, glFunctionsEnd, needle, CompareFunctor());
-
 		if(result != glFunctionsEnd && strcmp(procname, result->name) == 0)
 		{
 			return (__eglMustCastToProperFunctionPointerType)result->address;
