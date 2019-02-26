@@ -29,8 +29,7 @@ namespace sw
 	extern bool exactColorRounding;
 	extern bool forceClearRegisters;
 
-	PixelRoutine::PixelRoutine(const PixelProcessor::State &state, const PixelShader *shader)
-		: QuadRasterizer(state, shader), v(shader && shader->indirectAddressableInput)
+	PixelRoutine::PixelRoutine(const PixelProcessor::State &state, const PixelShader *shader) : QuadRasterizer(state, shader), v(shader && shader->dynamicallyIndexedInput)
 	{
 		if(!shader || shader->getShaderModel() < 0x0200 || forceClearRegisters)
 		{

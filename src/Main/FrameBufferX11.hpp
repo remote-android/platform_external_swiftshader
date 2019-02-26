@@ -31,21 +31,24 @@ namespace sw
 
 		~FrameBufferX11() override;
 
-		void flip(sw::Surface *source) override { blit(source, nullptr, nullptr); }
+		void flip(sw::Surface *source) override {blit(source, nullptr, nullptr);};
 		void blit(sw::Surface *source, const Rect *sourceRect, const Rect *destRect) override;
 
 		void *lock() override;
 		void unlock() override;
 
 	private:
-		const bool ownX11;
+		bool ownX11;
 		Display *x_display;
-		const Window x_window;
-		XImage *x_image = nullptr;
+		Window x_window;
+		XImage *x_image;
 		GC x_gc;
+		XVisualInfo x_visual;
 
 		bool mit_shm;
 		XShmSegmentInfo shminfo;
+
+		char *buffer;
 	};
 }
 

@@ -14,7 +14,6 @@
 
 import("//build/config/c++/c++.gni")
 import("//build/config/compiler/compiler.gni")
-import("//build/config/mips.gni")
 
 config("swiftshader_config") {
   defines = []
@@ -89,7 +88,7 @@ config("swiftshader_config") {
         "-march=x86-64",
         "-mtune=generic",
       ]
-    } else if (target_cpu == "x86") {  # 32 bit version
+    } else {  # 32 bit version
       cflags += [
         "-m32",
         "-msse2",
@@ -97,58 +96,16 @@ config("swiftshader_config") {
         "-march=pentium4",
         "-mtune=generic",
       ]
-    } else if (target_cpu == "mipsel" && current_cpu == target_cpu) {
-      cflags += [
-        "-march=mipsel",
-        "-fPIC",
-        "-mhard-float",
-        "-mfp32",
-      ]
-      if (mips_arch_variant == "r1") {
-        cflags += [
-          "-mcpu=mips32",
-        ]
-      } else {
-        cflags += [
-          "-mcpu=mips32r2",
-        ]
-      }
-    } else if (target_cpu == "mips64el" && current_cpu == target_cpu) {
-      cflags += [
-        "-march=mips64el",
-        "-mcpu=mips64r2",
-        "-mabi=64",
-        "-fPIC",
-      ]
     }
 
     if (is_linux) {
-      ldflags = [ "-Wl,--gc-sections" ]
-
-      if (target_cpu == "mipsel") {
-        ldflags += [
-          "-Wl,--hash-style=sysv",
-        ]
-        if (mips_arch_variant == "r1") {
-          ldflags += [
-            "-mips32",
-          ]
-        } else {
-          ldflags += [
-            "-mips32r2",
-          ]
-        }
-      } else if (target_cpu == "mips64el") {
-        ldflags += [
-          "-Wl,--hash-style=sysv",
-          "-mips64r2",
-        ]
-      } else {
-        ldflags += [ "-Wl,--hash-style=both" ]
-      }
+      ldflags = [
+        "-Wl,--hash-style=both",
+        "-Wl,--gc-sections",
+      ]
 
       # A bug in the gold linker prevents using ICF on 32-bit (crbug.com/729532)
-      if (use_gold && (target_cpu == "x86" || target_cpu == "mipsel")) {
+      if (use_gold && target_cpu == "x86") {
         ldflags += [ "-Wl,--icf=none" ]
       }
     }
@@ -185,6 +142,6 @@ group("swiftshader_tests") {
   testonly = true
 
   data_deps = [
-    "tests/GLESUnitTests:swiftshader_unittests",
+    "tests/unittests:swiftshader_unittests",
   ]
 }

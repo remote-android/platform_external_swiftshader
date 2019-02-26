@@ -14,15 +14,13 @@
 
 #include "LLVMRoutineManager.hpp"
 
-#if REACTOR_LLVM_VERSION < 7
-
 #include "LLVMRoutine.hpp"
 #include "llvm/Function.h"
-#include "ExecutableMemory.hpp"
-#include "Thread.hpp"
-#include "Debug.hpp"
+#include "../Common/Memory.hpp"
+#include "../Common/Thread.hpp"
+#include "../Common/Debug.hpp"
 
-namespace rr
+namespace sw
 {
 	using namespace llvm;
 
@@ -63,7 +61,7 @@ namespace rr
 		}
 		else   // Estimate was too low
 		{
-			atomicIncrement(&averageInstructionSize);
+			sw::atomicIncrement(&averageInstructionSize);
 		}
 
 		// Round up to the next page size
@@ -148,5 +146,3 @@ namespace rr
 		return result;
 	}
 }
-
-#endif  // REACTOR_LLVM_VERSION < 7

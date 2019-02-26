@@ -90,7 +90,7 @@ public:
 private:
 	LibEGLexports *loadExports()
 	{
-		if(!loadLibraryAttempted && !libEGL)
+		if(!libEGL)
 		{
 			#if defined(_WIN32)
 				#if defined(__LP64__)
@@ -113,7 +113,7 @@ private:
 					const char *libEGL_lib[] = {"libswiftshader_libEGL.dylib", "libEGL_translator.dylib", "libEGL.so", "libEGL.dylib"};
 				#endif
 			#elif defined(__Fuchsia__)
-				const char *libEGL_lib[] = {"libswiftshader_libEGL.so", "libEGL.so"};
+				const char *libEGL_lib[] = {"libEGL.so"};
 			#else
 				#error "libEGL::loadExports unimplemented for this platform"
 			#endif
@@ -126,8 +126,6 @@ private:
 				auto libEGL_swiftshader = (LibEGLexports *(*)())getProcAddress(libEGL, "libEGL_swiftshader");
 				libEGLexports = libEGL_swiftshader();
 			}
-
-			loadLibraryAttempted = true;
 		}
 
 		return libEGLexports;
@@ -135,7 +133,6 @@ private:
 
 	void *libEGL = nullptr;
 	LibEGLexports *libEGLexports = nullptr;
-	bool loadLibraryAttempted = false;
 };
 
 #endif   // libEGL_hpp
