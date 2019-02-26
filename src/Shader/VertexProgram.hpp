@@ -37,20 +37,20 @@ namespace sw
 	private:
 		const VertexShader *const shader;
 
-		RegisterArray<NUM_TEMPORARY_REGISTERS> r;   // Temporary registers
+		RegisterArray<4096> r;   // Temporary registers
 		Vector4f a0;
-		Array<Int, MAX_SHADER_NESTED_LOOPS> aL;
+		Array<Int, 4> aL;
 		Vector4f p0;
 
-		Array<Int, MAX_SHADER_NESTED_LOOPS> increment;
-		Array<Int, MAX_SHADER_NESTED_LOOPS> iteration;
+		Array<Int, 4> increment;
+		Array<Int, 4> iteration;
 
 		Int loopDepth;
 		Int stackIndex;   // FIXME: Inc/decrement callStack
-		Array<UInt, MAX_SHADER_CALL_STACK_SIZE> callStack;
+		Array<UInt, 16> callStack;
 
 		Int enableIndex;
-		Array<Int4, MAX_SHADER_ENABLE_STACK_SIZE> enableStack;
+		Array<Int4, 1 + 24> enableStack;
 		Int4 enableBreak;
 		Int4 enableContinue;
 		Int4 enableLeave;
@@ -70,9 +70,8 @@ namespace sw
 		Vector4f fetchRegister(const Src &src, unsigned int offset = 0);
 		Vector4f readConstant(const Src &src, unsigned int offset = 0);
 		RValue<Pointer<Byte>> uniformAddress(int bufferIndex, unsigned int index);
-		RValue<Pointer<Byte>> uniformAddress(int bufferIndex, unsigned int index, Int &offset);
-		Int relativeAddress(const Shader::Relative &rel, int bufferIndex = -1);
-		Int4 dynamicAddress(const Shader::Relative &rel);
+		RValue<Pointer<Byte>> uniformAddress(int bufferIndex, unsigned int index, Int& offset);
+		Int relativeAddress(const Shader::Parameter &var, int bufferIndex = -1);
 		Int4 enableMask(const Shader::Instruction *instruction);
 
 		void M3X2(Vector4f &dst, Vector4f &src0, Src &src1);
@@ -86,7 +85,6 @@ namespace sw
 		void BREAK(Int4 &condition);
 		void CONTINUE();
 		void TEST();
-		void SCALAR();
 		void CALL(int labelIndex, int callSiteIndex);
 		void CALLNZ(int labelIndex, int callSiteIndex, const Src &src);
 		void CALLNZb(int labelIndex, int callSiteIndex, const Src &boolRegister);
@@ -122,19 +120,18 @@ namespace sw
 		Vector4f sampleTexture(const Src &s, Vector4f &uvwq, Float4 &lod, Vector4f &dsx, Vector4f &dsy, Vector4f &offset, SamplerFunction function);
 		Vector4f sampleTexture(int sampler, Vector4f &uvwq, Float4 &lod, Vector4f &dsx, Vector4f &dsy, Vector4f &offset, SamplerFunction function);
 
-		BoundedIndex<MAX_SHADER_NESTED_IFS> ifDepth = 0;
-		BoundedIndex<MAX_SHADER_NESTED_LOOPS> loopRepDepth = 0;
-		BoundedIndex<MAX_SHADER_CALL_SITES> currentLabel = -1;
-		bool scalar = false;
+		int ifDepth;
+		int loopRepDepth;
+		int currentLabel;
+		bool whileTest;
 
-		BasicBlock *ifFalseBlock[MAX_SHADER_NESTED_IFS];
-		BasicBlock *loopRepTestBlock[MAX_SHADER_NESTED_LOOPS];
-		BasicBlock *loopRepEndBlock[MAX_SHADER_NESTED_LOOPS];
-		BasicBlock *labelBlock[MAX_SHADER_CALL_SITES];
-		std::vector<BasicBlock*> callRetBlock[MAX_SHADER_CALL_SITES];
+		BasicBlock *ifFalseBlock[24 + 24];
+		BasicBlock *loopRepTestBlock[4];
+		BasicBlock *loopRepEndBlock[4];
+		BasicBlock *labelBlock[2048];
+		std::vector<BasicBlock*> callRetBlock[2048];
 		BasicBlock *returnBlock;
-		bool isConditionalIf[MAX_SHADER_NESTED_IFS];
-		std::vector<Int4> restoreContinue;
+		bool isConditionalIf[24 + 24];
 	};
 }
 

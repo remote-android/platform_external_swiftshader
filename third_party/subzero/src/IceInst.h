@@ -199,9 +199,6 @@ public:
     llvm::report_fatal_error("Inst unexpectedly deleted");
   }
 
-  inline void* getExternalData() const { return externalData; }
-  inline void setExternalData(void* data) { externalData = data; }
-
 protected:
   Inst(Cfg *Func, InstKind Kind, SizeT MaxSrcs, Variable *Dest);
   void addSource(Operand *Src) {
@@ -239,10 +236,6 @@ protected:
   /// live range recorded in a basic block has at most one start and at most one
   /// end.
   bool IsDestRedefined = false;
-  /// External data can be set by an optimizer to compute and retain any
-  /// information related to the current instruction. All the memory used to
-  /// store this information must be managed by the optimizer.
-  void* externalData = nullptr;
 
   Variable *Dest;
   const SizeT MaxSrcs; // only used for assert

@@ -75,7 +75,7 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved
 
 namespace es2
 {
-Context *getContextLocked()
+es2::Context *getContext()
 {
 	egl::Context *context = libEGL->clientGetCurrentContext();
 
@@ -88,23 +88,17 @@ Context *getContextLocked()
 	return nullptr;
 }
 
-ContextPtr getContext()
-{
-	return ContextPtr{getContextLocked()};
-}
-
 Device *getDevice()
 {
-	Context *context = getContextLocked();
+	Context *context = getContext();
 
 	return context ? context->getDevice() : nullptr;
 }
 
 // Records an error code
-// Assumed to already hold the context lock for the current context
 void error(GLenum errorCode)
 {
-	es2::Context *context = es2::getContextLocked();
+	es2::Context *context = es2::getContext();
 
 	if(context)
 	{

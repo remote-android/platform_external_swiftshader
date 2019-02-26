@@ -23,8 +23,6 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <GLES3/gl3.h>
-#include <GL/glcorearb.h>
-#include <GL/glext.h>
 
 #include <stdlib.h>
 
@@ -400,12 +398,12 @@ namespace glsl
 		registerIndex = 0;
 	}
 
-	Attribute::Attribute(GLenum type, const std::string &name, int arraySize, int layoutLocation, int registerIndex)
+	Attribute::Attribute(GLenum type, const std::string &name, int arraySize, int location, int registerIndex)
 	{
 		this->type = type;
 		this->name = name;
 		this->arraySize = arraySize;
-		this->layoutLocation = layoutLocation;
+		this->location = location;
 		this->registerIndex = registerIndex;
 	}
 
@@ -748,11 +746,6 @@ namespace glsl
 		case EOpVectorTimesMatrixAssign:
 			assert(visit == PreVisit);
 			{
-				// The left operand may contain a swizzle serving double-duty as
-				// swizzle and writemask, so it's important that we traverse it
-				// first. Otherwise we may end up never setting up our left
-				// operand correctly.
-				left->traverse(this);
 				right->traverse(this);
 				int size = leftType.getNominalSize();
 
@@ -1569,19 +1562,9 @@ namespace glsl
 					for(int i = 0; i < outCols; i++)
 					{
 						emit(sw::Shader::OPCODE_MOV, result, i, &zero);
-						if (i < outRows)
-						{
-							// Insert the scalar value on the main diagonal.
-							// For non-square matrices, Avoid emitting in
-							// a column which doesn't /have/ a main diagonal
-							// element, even though it would be fairly benign --
-							// it's not necessarily trivial for downstream
-							// passes to see that this is redundant and strip it
-							// out.
-							Instruction *mov = emitCast(result, i, arg0, 0);
-							mov->dst.mask = 1 << i;
-							ASSERT(mov->src[0].swizzle == 0x00);
-						}
+						Instruction *mov = emitCast(result, i, arg0, 0);
+						mov->dst.mask = 1 << i;
+						ASSERT(mov->src[0].swizzle == 0x00);
 					}
 				}
 				else if(arg0->isMatrix())
@@ -1841,30 +1824,26 @@ namespace glsl
 			return false;
 		}
 
-		LoopInfo loop(node);
+		unsigned int iterations = loopCount(node);
 
-		if(loop.iterations == 0)
+		if(iterations == 0)
 		{
 			return false;
 		}
 
-		bool unroll = (loop.iterations <= 4);
+		bool unroll = (iterations <= 4);
+
+		if(unroll)
+		{
+			LoopUnrollable loopUnrollable;
+			unroll = loopUnrollable.traverse(node);
+		}
 
 		TIntermNode *init = node->getInit();
 		TIntermTyped *condition = node->getCondition();
 		TIntermTyped *expression = node->getExpression();
 		TIntermNode *body = node->getBody();
 		Constant True(true);
-
-		if(loop.isDeterministic())
-		{
-			 deterministicVariables.insert(loop.index->getId());
-
-			 if(!unroll)
-			 {
-				 emit(sw::Shader::OPCODE_SCALAR);   // Unrolled loops don't have an ENDWHILE to disable scalar mode.
-			 }
-		}
 
 		if(node->getType() == ELoopDoWhile)
 		{
@@ -1894,9 +1873,7 @@ namespace glsl
 
 			if(unroll)
 			{
-				mContext.info(node->getLine(), "loop unrolled", "for");
-
-				for(unsigned int i = 0; i < loop.iterations; i++)
+				for(unsigned int i = 0; i < iterations; i++)
 				{
 				//	condition->traverse(this);   // Condition could contain statements, but not in an unrollable loop
 
@@ -1931,11 +1908,6 @@ namespace glsl
 
 				emit(sw::Shader::OPCODE_TEST);
 
-				if(loop.isDeterministic())
-				{
-					emit(sw::Shader::OPCODE_SCALAR);
-				}
-
 				if(expression)
 				{
 					expression->traverse(this);
@@ -1948,11 +1920,6 @@ namespace glsl
 
 				emit(sw::Shader::OPCODE_ENDWHILE);
 			}
-		}
-
-		if(loop.isDeterministic())
-		{
-			 deterministicVariables.erase(loop.index->getId());
 		}
 
 		return false;
@@ -2690,12 +2657,10 @@ namespace glsl
 								sw::Shader::SourceParameter relativeRegister;
 								source(relativeRegister, right);
 
-								int indexId = right->getAsSymbolNode() ? right->getAsSymbolNode()->getId() : 0;
-
 								rel.index = relativeRegister.index;
 								rel.type = relativeRegister.type;
 								rel.scale = scale;
-								rel.dynamic = (right->getQualifier() != EvqUniform) && (deterministicVariables.count(indexId) == 0);
+								rel.deterministic = !(vertexShader && left->getQualifier() == EvqUniform);
 							}
 						}
 						else if(rel.index != registerIndex(&address))   // Move the previous index register to the address register
@@ -2894,10 +2859,6 @@ namespace glsl
 		{
 			return samplerRegister(operand);
 		}
-		else if(operand->getType().totalSamplerRegisterCount() > 0) // Struct containing a sampler
-		{
-			samplerRegister(operand); // Make sure the sampler is declared
-		}
 
 		switch(operand->getQualifier())
 		{
@@ -3070,14 +3031,7 @@ namespace glsl
 
 	int OutputASM::temporaryRegister(TIntermTyped *temporary)
 	{
-		int index = allocate(temporaries, temporary);
-		if(index >= sw::NUM_TEMPORARY_REGISTERS)
-		{
-			mContext.error(temporary->getLine(),
-				"Too many temporary registers required to compile shader",
-				pixelShader ? "pixel shader" : "vertex shader");
-		}
-		return index;
+		return allocate(temporaries, temporary);
 	}
 
 	void OutputASM::setPixelShaderInputs(const TType& type, int var, bool flat)
@@ -3751,11 +3705,16 @@ namespace glsl
 		return matrix->getSecondarySize();
 	}
 
-	// Sets iterations to ~0u if no loop count could be statically determined.
-	OutputASM::LoopInfo::LoopInfo(TIntermLoop *node)
+	// Returns ~0u if no loop count could be determined
+	unsigned int OutputASM::loopCount(TIntermLoop *node)
 	{
 		// Parse loops of the form:
-		// for(int index = initial; index [comparator] limit; index [op] increment)
+		// for(int index = initial; index [comparator] limit; index += increment)
+		TIntermSymbol *index = 0;
+		TOperator comparator = EOpNull;
+		int initial = 0;
+		int limit = 0;
+		int increment = 0;
 
 		// Parse index name and intial value
 		if(node->getInit())
@@ -3818,61 +3777,41 @@ namespace glsl
 
 			if(binaryTerminal)
 			{
-				TIntermSymbol *operand = binaryTerminal->getLeft()->getAsSymbolNode();
+				TOperator op = binaryTerminal->getOp();
+				TIntermConstantUnion *constant = binaryTerminal->getRight()->getAsConstantUnion();
 
-				if(operand && operand->getId() == index->getId())
+				if(constant)
 				{
-					TOperator op = binaryTerminal->getOp();
-					TIntermConstantUnion *constant = binaryTerminal->getRight()->getAsConstantUnion();
-
-					if(constant)
+					if(constant->getBasicType() == EbtInt && constant->getNominalSize() == 1)
 					{
-						if(constant->getBasicType() == EbtInt && constant->getNominalSize() == 1)
-						{
-							int value = constant->getUnionArrayPointer()[0].getIConst();
+						int value = constant->getUnionArrayPointer()[0].getIConst();
 
-							switch(op)
-							{
-							case EOpAddAssign: increment = value;  break;
-							case EOpSubAssign: increment = -value; break;
-							default:           increment = 0;      break;   // Rare cases left unhandled. Treated as non-deterministic.
-							}
+						switch(op)
+						{
+						case EOpAddAssign: increment = value;  break;
+						case EOpSubAssign: increment = -value; break;
+						default: UNIMPLEMENTED();
 						}
 					}
 				}
 			}
 			else if(unaryTerminal)
 			{
-				TIntermSymbol *operand = unaryTerminal->getOperand()->getAsSymbolNode();
+				TOperator op = unaryTerminal->getOp();
 
-				if(operand && operand->getId() == index->getId())
+				switch(op)
 				{
-					TOperator op = unaryTerminal->getOp();
-
-					switch(op)
-					{
-					case EOpPostIncrement: increment = 1;  break;
-					case EOpPostDecrement: increment = -1; break;
-					case EOpPreIncrement:  increment = 1;  break;
-					case EOpPreDecrement:  increment = -1; break;
-					default:               increment = 0;  break;   // Rare cases left unhandled. Treated as non-deterministic.
-					}
+				case EOpPostIncrement: increment = 1;  break;
+				case EOpPostDecrement: increment = -1; break;
+				case EOpPreIncrement:  increment = 1;  break;
+				case EOpPreDecrement:  increment = -1; break;
+				default: UNIMPLEMENTED();
 				}
 			}
 		}
 
 		if(index && comparator != EOpNull && increment != 0)
 		{
-			// Check the loop body for return statements or changes to the index variable that make it non-deterministic.
-			LoopUnrollable loopUnrollable;
-			bool unrollable = loopUnrollable.traverse(node, index->getId());
-
-			if(!unrollable)
-			{
-				iterations = ~0u;
-				return;
-			}
-
 			if(comparator == EOpLessThanEqual)
 			{
 				comparator = EOpLessThan;
@@ -3896,78 +3835,46 @@ namespace glsl
 			{
 				if(!(initial < limit))   // Never loops
 				{
-					iterations = 0;
+					return 0;
 				}
-				else if(increment < 0)
+
+				int iterations = (limit - initial + abs(increment) - 1) / increment;   // Ceiling division
+
+				if(iterations < 0)
 				{
-					iterations = ~0u;
+					return ~0u;
 				}
-				else
-				{
-					iterations = (limit - initial + abs(increment) - 1) / increment;   // Ceiling division
-				}
+
+				return iterations;
 			}
-			else
-			{
-				// Rare cases left unhandled. Treated as non-deterministic.
-				iterations = ~0u;
-			}
+			else UNIMPLEMENTED();   // Falls through
 		}
+
+		return ~0u;
 	}
 
-	bool LoopUnrollable::traverse(TIntermLoop *loop, int indexId)
+	bool LoopUnrollable::traverse(TIntermNode *node)
 	{
+		loopDepth = 0;
 		loopUnrollable = true;
 
-		loopIndexId = indexId;
-		TIntermNode *body = loop->getBody();
-
-		if(body)
-		{
-			body->traverse(this);
-		}
+		node->traverse(this);
 
 		return loopUnrollable;
 	}
 
-	void LoopUnrollable::visitSymbol(TIntermSymbol *node)
+	bool LoopUnrollable::visitLoop(Visit visit, TIntermLoop *loop)
 	{
-		// Check that the loop index is not used as the argument to a function out or inout parameter.
-		if(node->getId() == loopIndexId)
+		if(visit == PreVisit)
 		{
-			if(node->getQualifier() == EvqOut || node->getQualifier() == EvqInOut)
-			{
-				loopUnrollable = false;
-			}
+			loopDepth++;
 		}
-	}
-
-	bool LoopUnrollable::visitBinary(Visit visit, TIntermBinary *node)
-	{
-		if(!loopUnrollable)
+		else if(visit == PostVisit)
 		{
-			return false;
+			loopDepth++;
 		}
 
-		// Check that the loop index is not statically assigned to.
-		TIntermSymbol *symbol = node->getLeft()->getAsSymbolNode();
-		loopUnrollable = !(node->modifiesState() && symbol && (symbol->getId() == loopIndexId));
-
-		return loopUnrollable;
-	}
-
-	bool LoopUnrollable::visitUnary(Visit visit, TIntermUnary *node)
-	{
-		if(!loopUnrollable)
-		{
-			return false;
-		}
-
-		// Check that the loop index is not statically assigned to.
-		TIntermSymbol *symbol = node->getOperand()->getAsSymbolNode();
-		loopUnrollable = !(node->modifiesState() && symbol && (symbol->getId() == loopIndexId));
-
-		return loopUnrollable;
+		return true;
 	}
 
 	bool LoopUnrollable::visitBranch(Visit visit, TIntermBranch *node)
@@ -3977,10 +3884,16 @@ namespace glsl
 			return false;
 		}
 
+		if(!loopDepth)
+		{
+			return true;
+		}
+
 		switch(node->getFlowOp())
 		{
 		case EOpKill:
 		case EOpReturn:
+			break;
 		case EOpBreak:
 		case EOpContinue:
 			loopUnrollable = false;

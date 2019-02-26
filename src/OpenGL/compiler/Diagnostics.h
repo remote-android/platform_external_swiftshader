@@ -30,7 +30,6 @@ public:
 
 	int numErrors() const { return mNumErrors; }
 	int numWarnings() const { return mNumWarnings; }
-	int numInfos() const { return mNumInfos; }
 
 	void setShaderVersion(int version);
 
@@ -53,7 +52,6 @@ private:
 	TInfoSink& mInfoSink;
 	int mNumErrors;
 	int mNumWarnings;
-	int mNumInfos;
 };
 
 #endif  // COMPILER_DIAGNOSTICS_H_

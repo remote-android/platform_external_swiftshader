@@ -24,9 +24,14 @@
 namespace sw
 {
 	VertexProgram::VertexProgram(const VertexProcessor::State &state, const VertexShader *shader)
-		: VertexRoutine(state, shader), shader(shader), r(shader->indirectAddressableTemporaries)
+		: VertexRoutine(state, shader), shader(shader), r(shader->dynamicallyIndexedTemporaries)
 	{
-		for(int i = 0; i < MAX_SHADER_CALL_SITES; i++)
+		ifDepth = 0;
+		loopRepDepth = 0;
+		currentLabel = -1;
+		whileTest = false;
+
+		for(int i = 0; i < 2048; i++)
 		{
 			labelBlock[i] = 0;
 		}
@@ -54,7 +59,7 @@ namespace sw
 	{
 	}
 
-	void VertexProgram::pipeline(UInt &index)
+	void VertexProgram::pipeline(UInt& index)
 	{
 		if(!state.preTransformed)
 		{
@@ -66,7 +71,7 @@ namespace sw
 		}
 	}
 
-	void VertexProgram::program(UInt &index)
+	void VertexProgram::program(UInt& index)
 	{
 	//	shader->print("VertexShader-%0.8X.txt", state.shaderID);
 
@@ -291,7 +296,6 @@ namespace sw
 			case Shader::OPCODE_BREAKP:     BREAKP(src0);                   break;
 			case Shader::OPCODE_CONTINUE:   CONTINUE();                     break;
 			case Shader::OPCODE_TEST:       TEST();                         break;
-			case Shader::OPCODE_SCALAR:     SCALAR();                       break;
 			case Shader::OPCODE_CALL:       CALL(dst.label, dst.callSite);  break;
 			case Shader::OPCODE_CALLNZ:     CALLNZ(dst.label, dst.callSite, src0); break;
 			case Shader::OPCODE_ELSE:       ELSE();                         break;
@@ -368,23 +372,14 @@ namespace sw
 							if(dst.z) pDst.z = r[dst.index].z;
 							if(dst.w) pDst.w = r[dst.index].w;
 						}
-						else if(!dst.rel.dynamic)
-						{
-							Int a = dst.index + relativeAddress(dst.rel);
-
-							if(dst.x) pDst.x = r[a].x;
-							if(dst.y) pDst.y = r[a].y;
-							if(dst.z) pDst.z = r[a].z;
-							if(dst.w) pDst.w = r[a].w;
-						}
 						else
 						{
-							Int4 a = dst.index + dynamicAddress(dst.rel);
+							Int a = relativeAddress(dst);
 
-							if(dst.x) pDst.x = r[a].x;
-							if(dst.y) pDst.y = r[a].y;
-							if(dst.z) pDst.z = r[a].z;
-							if(dst.w) pDst.w = r[a].w;
+							if(dst.x) pDst.x = r[dst.index + a].x;
+							if(dst.y) pDst.y = r[dst.index + a].y;
+							if(dst.z) pDst.z = r[dst.index + a].z;
+							if(dst.w) pDst.w = r[dst.index + a].w;
 						}
 						break;
 					case Shader::PARAMETER_ADDR: pDst = a0; break;
@@ -422,30 +417,24 @@ namespace sw
 							if(dst.z) pDst.z = o[T0 + dst.index].z;
 							if(dst.w) pDst.w = o[T0 + dst.index].w;
 						}
-						else if(dst.rel.type == Shader::PARAMETER_VOID)   // Not relative
-						{
-							if(dst.x) pDst.x = o[dst.index].x;
-							if(dst.y) pDst.y = o[dst.index].y;
-							if(dst.z) pDst.z = o[dst.index].z;
-							if(dst.w) pDst.w = o[dst.index].w;
-						}
-						else if(!dst.rel.dynamic)
-						{
-							Int a = dst.index + relativeAddress(dst.rel);
-
-							if(dst.x) pDst.x = o[a].x;
-							if(dst.y) pDst.y = o[a].y;
-							if(dst.z) pDst.z = o[a].z;
-							if(dst.w) pDst.w = o[a].w;
-						}
 						else
 						{
-							Int4 a = dst.index + dynamicAddress(dst.rel);
+							if(dst.rel.type == Shader::PARAMETER_VOID)   // Not relative
+							{
+								if(dst.x) pDst.x = o[dst.index].x;
+								if(dst.y) pDst.y = o[dst.index].y;
+								if(dst.z) pDst.z = o[dst.index].z;
+								if(dst.w) pDst.w = o[dst.index].w;
+							}
+							else
+							{
+								Int a = relativeAddress(dst);
 
-							if(dst.x) pDst.x = o[a].x;
-							if(dst.y) pDst.y = o[a].y;
-							if(dst.z) pDst.z = o[a].z;
-							if(dst.w) pDst.w = o[a].w;
+								if(dst.x) pDst.x = o[dst.index + a].x;
+								if(dst.y) pDst.y = o[dst.index + a].y;
+								if(dst.z) pDst.z = o[dst.index + a].z;
+								if(dst.w) pDst.w = o[dst.index + a].w;
+							}
 						}
 						break;
 					case Shader::PARAMETER_LABEL:                break;
@@ -510,23 +499,14 @@ namespace sw
 						if(dst.z) r[dst.index].z = d.z;
 						if(dst.w) r[dst.index].w = d.w;
 					}
-					else if(!dst.rel.dynamic)
-					{
-						Int a = dst.index + relativeAddress(dst.rel);
-
-						if(dst.x) r[a].x = d.x;
-						if(dst.y) r[a].y = d.y;
-						if(dst.z) r[a].z = d.z;
-						if(dst.w) r[a].w = d.w;
-					}
 					else
 					{
-						Int4 a = dst.index + dynamicAddress(dst.rel);
+						Int a = relativeAddress(dst);
 
-						if(dst.x) r.scatter_x(a, d.x);
-						if(dst.y) r.scatter_y(a, d.y);
-						if(dst.z) r.scatter_z(a, d.z);
-						if(dst.w) r.scatter_w(a, d.w);
+						if(dst.x) r[dst.index + a].x = d.x;
+						if(dst.y) r[dst.index + a].y = d.y;
+						if(dst.z) r[dst.index + a].z = d.z;
+						if(dst.w) r[dst.index + a].w = d.w;
 					}
 					break;
 				case Shader::PARAMETER_ADDR:
@@ -568,30 +548,24 @@ namespace sw
 						if(dst.z) o[T0 + dst.index].z = d.z;
 						if(dst.w) o[T0 + dst.index].w = d.w;
 					}
-					else if(dst.rel.type == Shader::PARAMETER_VOID)   // Not relative
-					{
-						if(dst.x) o[dst.index].x = d.x;
-						if(dst.y) o[dst.index].y = d.y;
-						if(dst.z) o[dst.index].z = d.z;
-						if(dst.w) o[dst.index].w = d.w;
-					}
-					else if(!dst.rel.dynamic)
-					{
-						Int a = dst.index + relativeAddress(dst.rel);
-
-						if(dst.x) o[a].x = d.x;
-						if(dst.y) o[a].y = d.y;
-						if(dst.z) o[a].z = d.z;
-						if(dst.w) o[a].w = d.w;
-					}
 					else
 					{
-						Int4 a = dst.index + dynamicAddress(dst.rel);
+						if(dst.rel.type == Shader::PARAMETER_VOID)   // Not relative
+						{
+							if(dst.x) o[dst.index].x = d.x;
+							if(dst.y) o[dst.index].y = d.y;
+							if(dst.z) o[dst.index].z = d.z;
+							if(dst.w) o[dst.index].w = d.w;
+						}
+						else
+						{
+							Int a = relativeAddress(dst);
 
-						if(dst.x) o.scatter_x(a, d.x);
-						if(dst.y) o.scatter_y(a, d.y);
-						if(dst.z) o.scatter_z(a, d.z);
-						if(dst.w) o.scatter_w(a, d.w);
+							if(dst.x) o[dst.index + a].x = d.x;
+							if(dst.y) o[dst.index + a].y = d.y;
+							if(dst.z) o[dst.index + a].z = d.z;
+							if(dst.w) o[dst.index + a].w = d.w;
+						}
 					}
 					break;
 				case Shader::PARAMETER_LABEL:             break;
@@ -689,13 +663,9 @@ namespace sw
 			{
 				reg = r[i];
 			}
-			else if(!src.rel.dynamic)
-			{
-				reg = r[i + relativeAddress(src.rel, src.bufferIndex)];
-			}
 			else
 			{
-				reg = r[i + dynamicAddress(src.rel)];
+				reg = r[i + relativeAddress(src, src.bufferIndex)];
 			}
 			break;
 		case Shader::PARAMETER_CONST:
@@ -706,13 +676,9 @@ namespace sw
 			{
 				reg = v[i];
 			}
-			else if(!src.rel.dynamic)
-			{
-				reg = v[i + relativeAddress(src.rel, src.bufferIndex)];
-			}
 			else
 			{
-				reg = v[i + dynamicAddress(src.rel)];
+				reg = v[i + relativeAddress(src, src.bufferIndex)];
 			}
 			break;
 		case Shader::PARAMETER_VOID: return r[0];   // Dummy
@@ -742,13 +708,9 @@ namespace sw
 			{
 				reg = o[i];
 			}
-			else if(!src.rel.dynamic)
-			{
-				reg = o[i + relativeAddress(src.rel, src.bufferIndex)];
-			}
 			else
 			{
-				reg = o[i + dynamicAddress(src.rel)];
+				reg = o[i + relativeAddress(src, src.bufferIndex)];
 			}
 			break;
 		case Shader::PARAMETER_MISCTYPE:
@@ -824,7 +786,7 @@ namespace sw
 		}
 	}
 
-	RValue<Pointer<Byte>> VertexProgram::uniformAddress(int bufferIndex, unsigned int index, Int &offset)
+	RValue<Pointer<Byte>> VertexProgram::uniformAddress(int bufferIndex, unsigned int index, Int& offset)
 	{
 		return uniformAddress(bufferIndex, index) + offset * sizeof(float4);
 	}
@@ -864,11 +826,11 @@ namespace sw
 				}
 			}
 		}
-		else if(!src.rel.dynamic || src.rel.type == Shader::PARAMETER_LOOP)
+		else if(src.rel.type == Shader::PARAMETER_LOOP)
 		{
-			Int a = relativeAddress(src.rel, src.bufferIndex);
+			Int loopCounter = aL[loopDepth];
 
-			c.x = c.y = c.z = c.w = *Pointer<Float4>(uniformAddress(src.bufferIndex, i, a));
+			c.x = c.y = c.z = c.w = *Pointer<Float4>(uniformAddress(src.bufferIndex, i, loopCounter));
 
 			c.x = c.x.xxxx;
 			c.y = c.y.yyyy;
@@ -877,68 +839,85 @@ namespace sw
 		}
 		else
 		{
-			int component = src.rel.swizzle & 0x03;
-			Float4 a;
-
-			switch(src.rel.type)
+			if(src.rel.deterministic)
 			{
-			case Shader::PARAMETER_ADDR:     a = a0[component]; break;
-			case Shader::PARAMETER_TEMP:     a = r[src.rel.index][component]; break;
-			case Shader::PARAMETER_INPUT:    a = v[src.rel.index][component]; break;
-			case Shader::PARAMETER_OUTPUT:   a = o[src.rel.index][component]; break;
-			case Shader::PARAMETER_CONST:    a = *Pointer<Float>(uniformAddress(src.bufferIndex, src.rel.index) + component * sizeof(float)); break;
-			case Shader::PARAMETER_MISCTYPE:
-				switch(src.rel.index)
+				Int a = relativeAddress(src, src.bufferIndex);
+
+				c.x = c.y = c.z = c.w = *Pointer<Float4>(uniformAddress(src.bufferIndex, i, a));
+
+				c.x = c.x.xxxx;
+				c.y = c.y.yyyy;
+				c.z = c.z.zzzz;
+				c.w = c.w.wwww;
+			}
+			else
+			{
+				int component = src.rel.swizzle & 0x03;
+				Float4 a;
+
+				switch(src.rel.type)
 				{
-				case Shader::InstanceIDIndex: a = As<Float4>(Int4(instanceID)); break;
-				case Shader::VertexIDIndex:   a = As<Float4>(vertexID);         break;
+				case Shader::PARAMETER_ADDR:     a = a0[component]; break;
+				case Shader::PARAMETER_TEMP:     a = r[src.rel.index][component]; break;
+				case Shader::PARAMETER_INPUT:    a = v[src.rel.index][component]; break;
+				case Shader::PARAMETER_OUTPUT:   a = o[src.rel.index][component]; break;
+				case Shader::PARAMETER_CONST:    a = *Pointer<Float>(uniformAddress(src.bufferIndex, src.rel.index) + component * sizeof(float)); break;
+				case Shader::PARAMETER_MISCTYPE:
+					if(src.rel.index == Shader::InstanceIDIndex)
+					{
+						a = As<Float4>(Int4(instanceID)); break;
+					}
+					else if(src.rel.index == Shader::VertexIDIndex)
+					{
+						a = As<Float4>(vertexID); break;
+					}
+					else ASSERT(false);
+					break;
 				default: ASSERT(false);
 				}
-				break;
-			default: ASSERT(false);
+
+				Int4 index = Int4(i) + As<Int4>(a) * Int4(src.rel.scale);
+
+				index = Min(As<UInt4>(index), UInt4(VERTEX_UNIFORM_VECTORS));   // Clamp to constant register range, c[VERTEX_UNIFORM_VECTORS] = {0, 0, 0, 0}
+
+				Int index0 = Extract(index, 0);
+				Int index1 = Extract(index, 1);
+				Int index2 = Extract(index, 2);
+				Int index3 = Extract(index, 3);
+
+				c.x = *Pointer<Float4>(uniformAddress(src.bufferIndex, 0, index0), 16);
+				c.y = *Pointer<Float4>(uniformAddress(src.bufferIndex, 0, index1), 16);
+				c.z = *Pointer<Float4>(uniformAddress(src.bufferIndex, 0, index2), 16);
+				c.w = *Pointer<Float4>(uniformAddress(src.bufferIndex, 0, index3), 16);
+
+				transpose4x4(c.x, c.y, c.z, c.w);
 			}
-
-			Int4 index = Int4(i) + As<Int4>(a) * Int4(src.rel.scale);
-
-			index = Min(As<UInt4>(index), UInt4(VERTEX_UNIFORM_VECTORS));   // Clamp to constant register range, c[VERTEX_UNIFORM_VECTORS] = {0, 0, 0, 0}
-
-			Int index0 = Extract(index, 0);
-			Int index1 = Extract(index, 1);
-			Int index2 = Extract(index, 2);
-			Int index3 = Extract(index, 3);
-
-			c.x = *Pointer<Float4>(uniformAddress(src.bufferIndex, 0, index0), 16);
-			c.y = *Pointer<Float4>(uniformAddress(src.bufferIndex, 0, index1), 16);
-			c.z = *Pointer<Float4>(uniformAddress(src.bufferIndex, 0, index2), 16);
-			c.w = *Pointer<Float4>(uniformAddress(src.bufferIndex, 0, index3), 16);
-
-			transpose4x4(c.x, c.y, c.z, c.w);
 		}
 
 		return c;
 	}
 
-	Int VertexProgram::relativeAddress(const Shader::Relative &rel, int bufferIndex)
+	Int VertexProgram::relativeAddress(const Shader::Parameter &var, int bufferIndex)
 	{
-		ASSERT(!rel.dynamic);
+		ASSERT(var.rel.deterministic);
 
-		if(rel.type == Shader::PARAMETER_TEMP)
+		if(var.rel.type == Shader::PARAMETER_TEMP)
 		{
-			return As<Int>(Extract(r[rel.index].x, 0)) * rel.scale;
+			return As<Int>(Extract(r[var.rel.index].x, 0)) * var.rel.scale;
 		}
-		else if(rel.type == Shader::PARAMETER_INPUT)
+		else if(var.rel.type == Shader::PARAMETER_INPUT)
 		{
-			return As<Int>(Extract(v[rel.index].x, 0)) * rel.scale;
+			return As<Int>(Extract(v[var.rel.index].x, 0)) * var.rel.scale;
 		}
-		else if(rel.type == Shader::PARAMETER_OUTPUT)
+		else if(var.rel.type == Shader::PARAMETER_OUTPUT)
 		{
-			return As<Int>(Extract(o[rel.index].x, 0)) * rel.scale;
+			return As<Int>(Extract(o[var.rel.index].x, 0)) * var.rel.scale;
 		}
-		else if(rel.type == Shader::PARAMETER_CONST)
+		else if(var.rel.type == Shader::PARAMETER_CONST)
 		{
-			return *Pointer<Int>(uniformAddress(bufferIndex, rel.index)) * rel.scale;
+			return *Pointer<Int>(uniformAddress(bufferIndex, var.rel.index)) * var.rel.scale;
 		}
-		else if(rel.type == Shader::PARAMETER_LOOP)
+		else if(var.rel.type == Shader::PARAMETER_LOOP)
 		{
 			return aL[loopDepth];
 		}
@@ -947,53 +926,26 @@ namespace sw
 		return 0;
 	}
 
-	Int4 VertexProgram::dynamicAddress(const Shader::Relative &rel)
-	{
-		int component = rel.swizzle & 0x03;
-		Float4 a;
-
-		switch(rel.type)
-		{
-		case Shader::PARAMETER_ADDR:     a = a0[component]; break;
-		case Shader::PARAMETER_TEMP:     a = r[rel.index][component]; break;
-		case Shader::PARAMETER_INPUT:    a = v[rel.index][component]; break;
-		case Shader::PARAMETER_OUTPUT:   a = o[rel.index][component]; break;
-		case Shader::PARAMETER_MISCTYPE:
-			switch(rel.index)
-			{
-			case Shader::InstanceIDIndex: a = As<Float>(instanceID); break;
-			case Shader::VertexIDIndex:   a = As<Float4>(vertexID);  break;
-			default: ASSERT(false);
-			}
-			break;
-		default: ASSERT(false);
-		}
-
-		return As<Int4>(a) * Int4(rel.scale);
-	}
-
 	Int4 VertexProgram::enableMask(const Shader::Instruction *instruction)
 	{
-		if(scalar)
-		{
-			return Int4(0xFFFFFFFF);
-		}
+		Int4 enable = instruction->analysisBranch ? Int4(enableStack[enableIndex]) : Int4(0xFFFFFFFF);
 
-		Int4 enable = instruction->analysisBranch ? Int4(enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))]) : Int4(0xFFFFFFFF);
-
-		if(shader->containsBreakInstruction() && instruction->analysisBreak)
+		if(!whileTest)
 		{
-			enable &= enableBreak;
-		}
+			if(shader->containsBreakInstruction() && instruction->analysisBreak)
+			{
+				enable &= enableBreak;
+			}
 
-		if(shader->containsContinueInstruction() && instruction->analysisContinue)
-		{
-			enable &= enableContinue;
-		}
+			if(shader->containsContinueInstruction() && instruction->analysisContinue)
+			{
+				enable &= enableContinue;
+			}
 
-		if(shader->containsLeaveInstruction() && instruction->analysisLeave)
-		{
-			enable &= enableLeave;
+			if(shader->containsLeaveInstruction() && instruction->analysisLeave)
+			{
+				enable &= enableLeave;
+			}
 		}
 
 		return enable;
@@ -1058,7 +1010,7 @@ namespace sw
 
 	void VertexProgram::BREAK()
 	{
-		enableBreak = enableBreak & ~enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))];
+		enableBreak = enableBreak & ~enableStack[enableIndex];
 	}
 
 	void VertexProgram::BREAKC(Vector4f &src0, Vector4f &src1, Control control)
@@ -1094,25 +1046,19 @@ namespace sw
 
 	void VertexProgram::BREAK(Int4 &condition)
 	{
-		condition &= enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))];
+		condition &= enableStack[enableIndex];
 
 		enableBreak = enableBreak & ~condition;
 	}
 
 	void VertexProgram::CONTINUE()
 	{
-		enableContinue = enableContinue & ~enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))];
+		enableContinue = enableContinue & ~enableStack[enableIndex];
 	}
 
 	void VertexProgram::TEST()
 	{
-		enableContinue = restoreContinue.back();
-		restoreContinue.pop_back();
-	}
-
-	void VertexProgram::SCALAR()
-	{
-		scalar = true;
+		whileTest = true;
 	}
 
 	void VertexProgram::CALL(int labelIndex, int callSiteIndex)
@@ -1124,7 +1070,7 @@ namespace sw
 
 		if(callRetBlock[labelIndex].size() > 1)
 		{
-			callStack[Min(stackIndex++, Int(MAX_SHADER_CALL_STACK_SIZE))] = UInt(callSiteIndex);
+			callStack[stackIndex++] = UInt(callSiteIndex);
 		}
 
 		Int4 restoreLeave = enableLeave;
@@ -1164,7 +1110,7 @@ namespace sw
 
 		if(callRetBlock[labelIndex].size() > 1)
 		{
-			callStack[Min(stackIndex++, Int(MAX_SHADER_CALL_STACK_SIZE))] = UInt(callSiteIndex);
+			callStack[stackIndex++] = UInt(callSiteIndex);
 		}
 
 		Int4 restoreLeave = enableLeave;
@@ -1184,7 +1130,7 @@ namespace sw
 			condition = ~condition;
 		}
 
-		condition &= enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))];
+		condition &= enableStack[enableIndex];
 
 		if(!labelBlock[labelIndex])
 		{
@@ -1193,11 +1139,11 @@ namespace sw
 
 		if(callRetBlock[labelIndex].size() > 1)
 		{
-			callStack[Min(stackIndex++, Int(MAX_SHADER_CALL_STACK_SIZE))] = UInt(callSiteIndex);
+			callStack[stackIndex++] = UInt(callSiteIndex);
 		}
 
 		enableIndex++;
-		enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))] = condition;
+		enableStack[enableIndex] = condition;
 		Int4 restoreLeave = enableLeave;
 
 		Bool notAllFalse = SignMask(condition) != 0;
@@ -1217,12 +1163,12 @@ namespace sw
 
 		if(isConditionalIf[ifDepth])
 		{
-			Int4 condition = ~enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))] & enableStack[Min(enableIndex - 1, Int(MAX_SHADER_ENABLE_STACK_SIZE))];
+			Int4 condition = ~enableStack[enableIndex] & enableStack[enableIndex - 1];
 			Bool notAllFalse = SignMask(condition) != 0;
 
 			branch(notAllFalse, falseBlock, endBlock);
 
-			enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))] = ~enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))] & enableStack[Min(enableIndex - 1, Int(MAX_SHADER_ENABLE_STACK_SIZE))];
+			enableStack[enableIndex] = ~enableStack[enableIndex] & enableStack[enableIndex - 1];
 		}
 		else
 		{
@@ -1291,7 +1237,7 @@ namespace sw
 		Nucleus::setInsertBlock(endBlock);
 
 		enableIndex--;
-		scalar = false;
+		whileTest = false;
 	}
 
 	void VertexProgram::ENDSWITCH()
@@ -1376,10 +1322,10 @@ namespace sw
 
 	void VertexProgram::IF(Int4 &condition)
 	{
-		condition &= enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))];
+		condition &= enableStack[enableIndex];
 
 		enableIndex++;
-		enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))] = condition;
+		enableStack[enableIndex] = condition;
 
 		BasicBlock *trueBlock = Nucleus::createBasicBlock();
 		BasicBlock *falseBlock = Nucleus::createBasicBlock();
@@ -1476,18 +1422,19 @@ namespace sw
 		loopRepEndBlock[loopRepDepth] = endBlock;
 
 		Int4 restoreBreak = enableBreak;
-		restoreContinue.push_back(enableContinue);
+		Int4 restoreContinue = enableContinue;
 
 		// TODO: jump(testBlock)
 		Nucleus::createBr(testBlock);
 		Nucleus::setInsertBlock(testBlock);
+		enableContinue = restoreContinue;
 
 		const Vector4f &src = fetchRegister(temporaryRegister);
 		Int4 condition = As<Int4>(src.x);
-		condition &= enableStack[Min(enableIndex - 1, Int(MAX_SHADER_ENABLE_STACK_SIZE))];
+		condition &= enableStack[enableIndex - 1];
 		if(shader->containsLeaveInstruction()) condition &= enableLeave;
 		if(shader->containsBreakInstruction()) condition &= enableBreak;
-		enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))] = condition;
+		enableStack[enableIndex] = condition;
 
 		Bool notAllFalse = SignMask(condition) != 0;
 		branch(notAllFalse, loopBlock, endBlock);
@@ -1498,7 +1445,6 @@ namespace sw
 		Nucleus::setInsertBlock(loopBlock);
 
 		loopRepDepth++;
-		scalar = false;
 	}
 
 	void VertexProgram::SWITCH()
@@ -1560,7 +1506,7 @@ namespace sw
 
 	void VertexProgram::LEAVE()
 	{
-		enableLeave = enableLeave & ~enableStack[Min(enableIndex, Int(MAX_SHADER_ENABLE_STACK_SIZE))];
+		enableLeave = enableLeave & ~enableStack[enableIndex];
 
 		// FIXME: Return from function if all instances left
 		// FIXME: Use enableLeave in other control-flow constructs
@@ -1608,10 +1554,7 @@ namespace sw
 
 	void VertexProgram::TEXSIZE(Vector4f &dst, Float4 &lod, const Src &src1)
 	{
-		bool uniformSampler = (src1.type == Shader::PARAMETER_SAMPLER && src1.rel.type == Shader::PARAMETER_VOID);
-		Int offset = uniformSampler ? src1.index * sizeof(Texture) : As<Int>(Float(fetchRegister(src1).x.x)) * sizeof(Texture);
-		Pointer<Byte> texture = data + OFFSET(DrawData, mipmap[TEXTURE_IMAGE_UNITS]) + offset;
-
+		Pointer<Byte> texture = data + OFFSET(DrawData, mipmap[TEXTURE_IMAGE_UNITS]) + src1.index * sizeof(Texture);
 		dst = SamplerCore::textureSize(texture, lod);
 	}
 

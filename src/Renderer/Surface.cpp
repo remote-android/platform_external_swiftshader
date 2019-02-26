@@ -44,10 +44,6 @@ namespace sw
 
 	void Surface::Buffer::write(int x, int y, int z, const Color<float> &color)
 	{
-		ASSERT((x >= -border) && (x < (width + border)));
-		ASSERT((y >= -border) && (y < (height + border)));
-		ASSERT((z >= 0) && (z < depth));
-
 		byte *element = (byte*)buffer + (x + border) * bytes + (y + border) * pitchB + z * samples * sliceB;
 
 		for(int i = 0; i < samples; i++)
@@ -59,9 +55,6 @@ namespace sw
 
 	void Surface::Buffer::write(int x, int y, const Color<float> &color)
 	{
-		ASSERT((x >= -border) && (x < (width + border)));
-		ASSERT((y >= -border) && (y < (height + border)));
-
 		byte *element = (byte*)buffer + (x + border) * bytes + (y + border) * pitchB;
 
 		for(int i = 0; i < samples; i++)
@@ -403,10 +396,6 @@ namespace sw
 
 	Color<float> Surface::Buffer::read(int x, int y, int z) const
 	{
-		ASSERT((x >= -border) && (x < (width + border)));
-		ASSERT((y >= -border) && (y < (height + border)));
-		ASSERT((z >= 0) && (z < depth));
-
 		void *element = (unsigned char*)buffer + (x + border) * bytes + (y + border) * pitchB + z * samples * sliceB;
 
 		return read(element);
@@ -414,9 +403,6 @@ namespace sw
 
 	Color<float> Surface::Buffer::read(int x, int y) const
 	{
-		ASSERT((x >= -border) && (x < (width + border)));
-		ASSERT((y >= -border) && (y < (height + border)));
-
 		void *element = (unsigned char*)buffer + (x + border) * bytes + (y + border) * pitchB;
 
 		return read(element);
@@ -1324,8 +1310,8 @@ namespace sw
 		external.samples = (short)samples;
 		external.format = format;
 		external.bytes = bytes(external.format);
-		external.pitchB = !pitchPprovided ? pitchB(external.width, 0, external.format, renderTarget && !texture) : pitchPprovided * external.bytes;
-		external.pitchP = !pitchPprovided ? pitchP(external.width, 0, external.format, renderTarget && !texture) : pitchPprovided;
+		external.pitchB = pitchB(external.width, 0, external.format, renderTarget && !texture);
+		external.pitchP = pitchP(external.width, 0, external.format, renderTarget && !texture);
 		external.sliceB = sliceB(external.width, external.height, 0, external.format, renderTarget && !texture);
 		external.sliceP = sliceP(external.width, external.height, 0, external.format, renderTarget && !texture);
 		external.border = 0;
@@ -1389,9 +1375,9 @@ namespace sw
 
 		deallocate(stencil.buffer);
 
-		external.buffer = nullptr;
-		internal.buffer = nullptr;
-		stencil.buffer = nullptr;
+		external.buffer = 0;
+		internal.buffer = 0;
+		stencil.buffer = 0;
 	}
 
 	void *Surface::lockExternal(int x, int y, int z, Lock lock, Accessor client)
@@ -1400,7 +1386,7 @@ namespace sw
 
 		if(!external.buffer)
 		{
-			if(internal.buffer && identicalBuffers())
+			if(internal.buffer && identicalFormats())
 			{
 				external.buffer = internal.buffer;
 			}
@@ -1452,7 +1438,7 @@ namespace sw
 
 		if(!internal.buffer)
 		{
-			if(external.buffer && identicalBuffers())
+			if(external.buffer && identicalFormats())
 			{
 				internal.buffer = external.buffer;
 			}
@@ -1529,12 +1515,12 @@ namespace sw
 
 	void *Surface::lockStencil(int x, int y, int front, Accessor client)
 	{
-		resource->lock(client);
-
 		if(stencil.format == FORMAT_NULL)
 		{
 			return nullptr;
 		}
+
+		resource->lock(client);
 
 		if(!stencil.buffer)
 		{
@@ -1723,10 +1709,9 @@ namespace sw
 	{
 		width += 2 * border;
 
-		// Render targets require 2x2 quads
 		if(target || isDepth(format) || isStencil(format))
 		{
-			width = align<2>(width);
+			width = align(width, 2);
 		}
 
 		switch(format)
@@ -1788,7 +1773,7 @@ namespace sw
 		case FORMAT_YV12_BT601:
 		case FORMAT_YV12_BT709:
 		case FORMAT_YV12_JFIF:
-			return align<16>(width);
+			return align(width, 16);
 		default:
 			return bytes(format) * width;
 		}
@@ -1805,10 +1790,9 @@ namespace sw
 	{
 		height += 2 * border;
 
-		// Render targets require 2x2 quads
 		if(target || isDepth(format) || isStencil(format))
 		{
-			height = align<2>(height);
+			height = ((height + 1) & ~1);
 		}
 
 		switch(format)
@@ -1863,7 +1847,6 @@ namespace sw
 			return pitchB(width, border, format, target) * ((height + 11) / 12);   // Pitch computed per 12 rows
 		case FORMAT_ATI1:
 		case FORMAT_ATI2:
-			return pitchB(width, border, format, target) * align<4>(height);   // Pitch computed per row
 		default:
 			return pitchB(width, border, format, target) * height;   // Pitch computed per row
 		}
@@ -2311,7 +2294,7 @@ namespace sw
 					{
 						for(int i = 0; i < 4 && (x + i) < internal.width; i++)
 						{
-							dest[(x + i) + (y + j) * internal.pitchP] = c[(unsigned int)(source->lut >> 2 * (i + j * 4)) % 4];
+							dest[(x + i) + (y + j) * internal.width] = c[(unsigned int)(source->lut >> 2 * (i + j * 4)) % 4];
 						}
 					}
 
@@ -2361,7 +2344,7 @@ namespace sw
 							unsigned int a = (unsigned int)(source->a >> 4 * (i + j * 4)) & 0x0F;
 							unsigned int color = (c[(unsigned int)(source->lut >> 2 * (i + j * 4)) % 4] & 0x00FFFFFF) | ((a << 28) + (a << 24));
 
-							dest[(x + i) + (y + j) * internal.pitchP] = color;
+							dest[(x + i) + (y + j) * internal.width] = color;
 						}
 					}
 
@@ -2435,7 +2418,7 @@ namespace sw
 							unsigned int alpha = (unsigned int)a[(unsigned int)(source->alut >> (16 + 3 * (i + j * 4))) % 8] << 24;
 							unsigned int color = (c[(source->clut >> 2 * (i + j * 4)) % 4] & 0x00FFFFFF) | alpha;
 
-							dest[(x + i) + (y + j) * internal.pitchP] = color;
+							dest[(x + i) + (y + j) * internal.width] = color;
 						}
 					}
 
@@ -2491,7 +2474,7 @@ namespace sw
 					{
 						for(int i = 0; i < 4 && (x + i) < internal.width; i++)
 						{
-							dest[(x + i) + (y + j) * internal.pitchP] = r[(unsigned int)(source->rlut >> (16 + 3 * (i + j * 4))) % 8];
+							dest[(x + i) + (y + j) * internal.width] = r[(unsigned int)(source->rlut >> (16 + 3 * (i + j * 4))) % 8];
 						}
 					}
 
@@ -2574,7 +2557,7 @@ namespace sw
 							word r = X[(unsigned int)(source->xlut >> (16 + 3 * (i + j * 4))) % 8];
 							word g = Y[(unsigned int)(source->ylut >> (16 + 3 * (i + j * 4))) % 8];
 
-							dest[(x + i) + (y + j) * internal.pitchP] = (g << 8) + r;
+							dest[(x + i) + (y + j) * internal.width] = (g << 8) + r;
 						}
 					}
 
@@ -2660,39 +2643,89 @@ namespace sw
 	{
 	}
 
-	size_t Surface::size(int width, int height, int depth, int border, int samples, Format format)
+	unsigned int Surface::size(int width, int height, int depth, int border, int samples, Format format)
 	{
-		samples = max(1, samples);
+		width += 2 * border;
+		height += 2 * border;
+
+		// Dimensions rounded up to multiples of 4, used for compressed formats
+		int width4 = align(width, 4);
+		int height4 = align(height, 4);
 
 		switch(format)
 		{
-		default:
-			{
-				uint64_t size = (uint64_t)sliceB(width, height, border, format, true) * depth * samples;
-
-				// FIXME: Unpacking byte4 to short4 in the sampler currently involves reading 8 bytes,
-				// and stencil operations also read 8 bytes per four 8-bit stencil values,
-				// so we have to allocate 4 extra bytes to avoid buffer overruns.
-				size += 4;
-
-				// We can only sample buffers smaller than 2 GiB.
-				// Force an out-of-memory if larger, or let the caller report an error.
-				return size < 0x80000000u ? (size_t)size : std::numeric_limits<size_t>::max();
-			}
+		case FORMAT_DXT1:
+		case FORMAT_ATI1:
+		case FORMAT_ETC1:
+		case FORMAT_R11_EAC:
+		case FORMAT_SIGNED_R11_EAC:
+		case FORMAT_RGB8_ETC2:
+		case FORMAT_SRGB8_ETC2:
+		case FORMAT_RGB8_PUNCHTHROUGH_ALPHA1_ETC2:
+		case FORMAT_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2:
+			return width4 * height4 * depth / 2;
+		case FORMAT_DXT3:
+		case FORMAT_DXT5:
+		case FORMAT_ATI2:
+		case FORMAT_RG11_EAC:
+		case FORMAT_SIGNED_RG11_EAC:
+		case FORMAT_RGBA8_ETC2_EAC:
+		case FORMAT_SRGB8_ALPHA8_ETC2_EAC:
+		case FORMAT_RGBA_ASTC_4x4_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_4x4_KHR:
+			return width4 * height4 * depth;
+		case FORMAT_RGBA_ASTC_5x4_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_5x4_KHR:
+			return align(width, 5) * height4 * depth;
+		case FORMAT_RGBA_ASTC_5x5_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_5x5_KHR:
+			return align(width, 5) * align(height, 5) * depth;
+		case FORMAT_RGBA_ASTC_6x5_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_6x5_KHR:
+			return align(width, 6) * align(height, 5) * depth;
+		case FORMAT_RGBA_ASTC_6x6_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_6x6_KHR:
+			return align(width, 6) * align(height, 6) * depth;
+		case FORMAT_RGBA_ASTC_8x5_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_8x5_KHR:
+			return align(width, 8) * align(height, 5) * depth;
+		case FORMAT_RGBA_ASTC_8x6_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_8x6_KHR:
+			return align(width, 8) * align(height, 6) * depth;
+		case FORMAT_RGBA_ASTC_8x8_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_8x8_KHR:
+			return align(width, 8) * align(height, 8) * depth;
+		case FORMAT_RGBA_ASTC_10x5_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_10x5_KHR:
+			return align(width, 10) * align(height, 5) * depth;
+		case FORMAT_RGBA_ASTC_10x6_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_10x6_KHR:
+			return align(width, 10) * align(height, 6) * depth;
+		case FORMAT_RGBA_ASTC_10x8_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_10x8_KHR:
+			return align(width, 10) * align(height, 8) * depth;
+		case FORMAT_RGBA_ASTC_10x10_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_10x10_KHR:
+			return align(width, 10) * align(height, 10) * depth;
+		case FORMAT_RGBA_ASTC_12x10_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_12x10_KHR:
+			return align(width, 12) * align(height, 10) * depth;
+		case FORMAT_RGBA_ASTC_12x12_KHR:
+		case FORMAT_SRGB8_ALPHA8_ASTC_12x12_KHR:
+			return align(width, 12) * align(height, 12) * depth;
 		case FORMAT_YV12_BT601:
 		case FORMAT_YV12_BT709:
 		case FORMAT_YV12_JFIF:
 			{
-				width += 2 * border;
-				height += 2 * border;
-
-				size_t YStride = align<16>(width);
-				size_t YSize = YStride * height;
-				size_t CStride = align<16>(YStride / 2);
-				size_t CSize = CStride * height / 2;
+				unsigned int YStride = align(width, 16);
+				unsigned int YSize = YStride * height;
+				unsigned int CStride = align(YStride / 2, 16);
+				unsigned int CSize = CStride * height / 2;
 
 				return YSize + 2 * CSize;
 			}
+		default:
+			return bytes(format) * width * height * depth * samples;
 		}
 	}
 
@@ -3227,7 +3260,14 @@ namespace sw
 
 	void *Surface::allocateBuffer(int width, int height, int depth, int border, int samples, Format format)
 	{
-		return allocate(size(width, height, depth, border, samples, format));
+		// Render targets require 2x2 quads
+		int width2 = (width + 1) & ~1;
+		int height2 = (height + 1) & ~1;
+
+		// FIXME: Unpacking byte4 to short4 in the sampler currently involves reading 8 bytes,
+		// and stencil operations also read 8 bytes per four 8-bit stencil values,
+		// so we have to allocate 4 extra bytes to avoid buffer overruns.
+		return allocate(size(width2, height2, depth, border, samples, format) + 4);
 	}
 
 	void Surface::memfill4(void *buffer, int pattern, int bytes)
@@ -3316,15 +3356,7 @@ namespace sw
 
 	void Surface::clearDepth(float depth, int x0, int y0, int width, int height)
 	{
-		if(width == 0 || height == 0)
-		{
-			return;
-		}
-
-		if(internal.format == FORMAT_NULL)
-		{
-			return;
-		}
+		if(width == 0 || height == 0) return;
 
 		// Not overlapping
 		if(x0 > internal.width) return;
@@ -3447,15 +3479,7 @@ namespace sw
 
 	void Surface::clearStencil(unsigned char s, unsigned char mask, int x0, int y0, int width, int height)
 	{
-		if(mask == 0 || width == 0 || height == 0)
-		{
-			return;
-		}
-
-		if(stencil.format == FORMAT_NULL)
-		{
-			return;
-		}
+		if(mask == 0 || width == 0 || height == 0) return;
 
 		// Not overlapping
 		if(x0 > internal.width) return;
@@ -3729,7 +3753,7 @@ namespace sw
 		return resource;
 	}
 
-	bool Surface::identicalBuffers() const
+	bool Surface::identicalFormats() const
 	{
 		return external.format == internal.format &&
 		       external.width  == internal.width &&
