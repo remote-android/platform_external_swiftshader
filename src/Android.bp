@@ -186,24 +186,6 @@ cc_defaults {
 }
 
 cc_defaults {
-    name: "libswiftshader_subzero_defaults",
-
-    defaults: [ "libswiftshader_common_defaults", "swiftshader_subzero" ],
-    device_supported: false,
-
-    srcs: [
-        "Reactor/SubzeroReactor.cpp",
-        "Reactor/Routine.cpp",
-        "Reactor/Optimizer.cpp",
-    ],
-
-    static_libs: [
-        "libLLVMSupport_subzero",
-        "libsubzero",
-    ],
-}
-
-cc_defaults {
     name: "libswiftshader_common",
 
     defaults: [ "libswiftshader_release", "libswiftshader_common_defaults" ],
@@ -229,20 +211,6 @@ cc_library_static {
     device_supported: false,
 
     defaults: [ "libswiftshader_common_debug", "libswiftshader_llvm_defaults" ],
-}
-
-cc_library_static {
-    name: "libswiftshader_subzero",
-
-    defaults: [ "libswiftshader_common", "libswiftshader_subzero_defaults" ],
-    device_supported: false,
-}
-
-cc_library_static {
-    name: "libswiftshader_subzero_debug",
-    device_supported: false,
-
-    defaults: [ "libswiftshader_common_debug", "libswiftshader_subzero_defaults" ],
 }
 
 // compiler libraries
@@ -314,14 +282,6 @@ cc_defaults {
     defaults: [ "libswiftshader_release" ],
 
     target: {
-        android_arm: {
-            static_libs: [
-                "libswiftshader_subzero",
-                "libsubzero",
-                "libLLVMSupport_subzero",
-            ],
-        },
-
         android: {
             static_libs: [
                 "libswiftshader_llvm",
@@ -344,14 +304,6 @@ cc_defaults {
     defaults: [ "libswiftshader_debug" ],
 
     target: {
-        android_arm: {
-            static_libs: [
-                "libswiftshader_subzero_debug",
-                "libsubzero",
-                "libLLVMSupport_subzero",
-            ],
-        },
-
         android: {
             static_libs: [
                 "libswiftshader_llvm_debug",
