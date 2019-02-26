@@ -53,7 +53,6 @@ struct PixelStorageModes
 };
 
 GLint GetSizedInternalFormat(GLint internalFormat, GLenum type);
-sw::Format ConvertReadFormatType(GLenum format, GLenum type);
 sw::Format SelectInternalFormat(GLint format);
 bool IsUnsizedInternalFormat(GLint internalformat);
 GLenum GetBaseInternalFormat(GLint internalformat);
@@ -82,6 +81,7 @@ public:
 	void release();
 	void* lock(int x, int y, int z);
 	void unlock();
+	bool requiresSync() const;
 
 private:
 	int width;
@@ -147,6 +147,8 @@ public:
 
 	// Back buffer from client buffer
 	static Image *create(const egl::ClientBuffer& clientBuffer);
+
+	static size_t size(int width, int height, int depth, int border, int samples, GLint internalformat);
 
 	GLsizei getWidth() const
 	{
