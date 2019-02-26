@@ -51,7 +51,6 @@ namespace es
 			if(file)
 			{
 				vfprintf(file, format, vararg);
-			//	fflush(file);
 			}
 		}
 	}

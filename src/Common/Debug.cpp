@@ -17,8 +17,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-namespace sw
-{
 void trace(const char *format, ...)
 {
 	if(false)
@@ -35,5 +33,4 @@ void trace(const char *format, ...)
 			fclose(file);
 		}
 	}
-}
 }

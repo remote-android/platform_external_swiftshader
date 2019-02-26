@@ -90,7 +90,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 		return 0;
 	}
 
-	if(data[size - 1] != 0)
+	if (data[size -1] != 0)
 	{
 		return 0;
 	}
@@ -118,7 +118,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 	resources.OES_standard_derivatives = 1;
 	resources.OES_fragment_precision_high = 1;
 	resources.OES_EGL_image_external = 1;
-	resources.OES_EGL_image_external_essl3 = 1;
 	resources.EXT_draw_buffers = 1;
 	resources.ARB_texture_rectangle = 1;
 	resources.MaxCallStackDepth = 16;
@@ -204,7 +203,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 	sw::VertexProgram program(state, bytecodeShader.get());
 	program.generate();
 
-	sw::Routine *routine = program("VertexRoutine");
+	sw::Routine *routine = program(L"VertexRoutine");
 	assert(routine);
 	const void *entry = routine->getEntry();
 	assert(entry); (void)entry;
@@ -212,26 +211,3 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 
 	return 0;
 }
-
-#if defined(FUZZER_STANDALONE_REPRODUCE)
-int main(int argc, char *argv[])
-{
-	FILE *file = fopen("clusterfuzz-testcase", "r");
-
-	fseek(file, 0L, SEEK_END);
-	long numbytes = ftell(file);
-	fseek(file, 0L, SEEK_SET);
-	uint8_t *buffer = (uint8_t*)calloc(numbytes, sizeof(uint8_t));
-	fread(buffer, sizeof(char), numbytes, file);
-	fclose(file);
-
-	while(true)
-	{
-		LLVMFuzzerTestOneInput(buffer, numbytes);
-	}
-
-	free(buffer);
-
-	return 0;
-}
-#endif

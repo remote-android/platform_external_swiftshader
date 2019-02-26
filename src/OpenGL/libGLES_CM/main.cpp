@@ -1411,6 +1411,11 @@ GL_API void GL_APIENTRY glDrawTexfvOES(const GLfloat *coords)
 {
 	return es1::DrawTexfvOES(coords);
 }
+
+void GL_APIENTRY Register(const char *licenseKey)
+{
+	// Nothing to do, SwiftShader is open-source
+}
 }
 
 LibGLES_CMexports::LibGLES_CMexports()

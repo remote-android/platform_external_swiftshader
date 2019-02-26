@@ -65,7 +65,7 @@ Framebuffer::~Framebuffer()
 
 Renderbuffer *Framebuffer::lookupRenderbuffer(GLenum type, GLuint handle, GLint level) const
 {
-	Context *context = getContextLocked();
+	Context *context = getContext();
 	Renderbuffer *buffer = nullptr;
 
 	if(type == GL_NONE)
@@ -329,6 +329,8 @@ GLenum Framebuffer::completeness(int &width, int &height, int &samples)
 	height = -1;
 	samples = -1;
 
+	GLint version = egl::getClientVersion();
+
 	for(int i = 0; i < MAX_COLOR_ATTACHMENTS; i++)
 	{
 		if(mColorbufferType[i] != GL_NONE)
@@ -347,16 +349,16 @@ GLenum Framebuffer::completeness(int &width, int &height, int &samples)
 
 			if(IsRenderbuffer(mColorbufferType[i]))
 			{
-				if(!IsColorRenderable(colorbuffer->getFormat()))
+				if(!IsColorRenderable(colorbuffer->getFormat(), version))
 				{
 					return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
 				}
 			}
 			else if(IsTextureTarget(mColorbufferType[i]))
 			{
-				GLint format = colorbuffer->getFormat();
+				GLenum format = colorbuffer->getFormat();
 
-				if(!IsColorRenderable(format))
+				if(!IsColorRenderable(format, version))
 				{
 					return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
 				}
@@ -380,6 +382,11 @@ GLenum Framebuffer::completeness(int &width, int &height, int &samples)
 			}
 			else
 			{
+				if(version < 3 && (width != colorbuffer->getWidth() || height != colorbuffer->getHeight()))
+				{
+					return GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS;
+				}
+
 				if(samples != colorbuffer->getSamples())
 				{
 					return GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE;
@@ -410,7 +417,7 @@ GLenum Framebuffer::completeness(int &width, int &height, int &samples)
 
 		if(IsRenderbuffer(mDepthbufferType))
 		{
-			if(!es2::IsDepthRenderable(depthbuffer->getFormat()))
+			if(!es2::IsDepthRenderable(depthbuffer->getFormat(), version))
 			{
 				return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
 			}
@@ -436,6 +443,11 @@ GLenum Framebuffer::completeness(int &width, int &height, int &samples)
 		}
 		else
 		{
+			if(version < 3 && (width != depthbuffer->getWidth() || height != depthbuffer->getHeight()))
+			{
+				return GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS;
+			}
+
 			if(samples != depthbuffer->getSamples())
 			{
 				return GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE;
@@ -462,7 +474,7 @@ GLenum Framebuffer::completeness(int &width, int &height, int &samples)
 
 		if(IsRenderbuffer(mStencilbufferType))
 		{
-			if(!es2::IsStencilRenderable(stencilbuffer->getFormat()))
+			if(!es2::IsStencilRenderable(stencilbuffer->getFormat(), version))
 			{
 				return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
 			}
@@ -490,6 +502,11 @@ GLenum Framebuffer::completeness(int &width, int &height, int &samples)
 		}
 		else
 		{
+			if(version < 3 && (width != stencilbuffer->getWidth() || height != stencilbuffer->getHeight()))
+			{
+				return GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS;
+			}
+
 			if(samples != stencilbuffer->getSamples())
 			{
 				return GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE;
@@ -500,7 +517,7 @@ GLenum Framebuffer::completeness(int &width, int &height, int &samples)
 		}
 	}
 
-	if(depthbuffer && stencilbuffer && (depthbuffer != stencilbuffer))
+	if((version >= 3) && depthbuffer && stencilbuffer && (depthbuffer != stencilbuffer))
 	{
 		// In the GLES 3.0 spec, section 4.4.4, Framebuffer Completeness:
 		// "The framebuffer object target is said to be framebuffer complete if all the following conditions are true:
@@ -621,11 +638,11 @@ GLenum Framebuffer::getImplementationColorReadType() const
 		case GL_RG32UI:         return GL_UNSIGNED_INT;
 		case GL_RGB32UI:        return GL_UNSIGNED_INT;
 		case GL_RGBA32UI:       return GL_UNSIGNED_INT;
-		case GL_R16F:           return GL_HALF_FLOAT;
-		case GL_RG16F:          return GL_HALF_FLOAT;
-		case GL_R11F_G11F_B10F: return GL_HALF_FLOAT;
-		case GL_RGB16F:         return GL_HALF_FLOAT;
-		case GL_RGBA16F:        return GL_HALF_FLOAT;
+		case GL_R16F:           return GL_FLOAT;
+		case GL_RG16F:          return GL_FLOAT;
+		case GL_R11F_G11F_B10F: return GL_FLOAT;
+		case GL_RGB16F:         return GL_FLOAT;
+		case GL_RGBA16F:        return GL_FLOAT;
 		case GL_R32F:           return GL_FLOAT;
 		case GL_RG32F:          return GL_FLOAT;
 		case GL_RGB32F:         return GL_FLOAT;
@@ -668,7 +685,7 @@ GLenum Framebuffer::getDepthReadType() const
 		case GL_DEPTH_COMPONENT32_OES: return GL_UNSIGNED_INT;
 		case GL_DEPTH_COMPONENT32F:    return GL_FLOAT;
 		case GL_DEPTH24_STENCIL8:      return GL_UNSIGNED_INT_24_8_OES;
-		case GL_DEPTH32F_STENCIL8:     return GL_FLOAT_32_UNSIGNED_INT_24_8_REV;
+		case GL_DEPTH32F_STENCIL8:     return GL_FLOAT;
 		default:
 			UNREACHABLE(depthbuffer->getFormat());
 		}
@@ -699,7 +716,7 @@ DefaultFramebuffer::DefaultFramebuffer()
 
 DefaultFramebuffer::DefaultFramebuffer(Colorbuffer *colorbuffer, DepthStencilbuffer *depthStencil)
 {
-	GLenum defaultRenderbufferType = GL_FRAMEBUFFER_DEFAULT;
+	GLenum defaultRenderbufferType = egl::getClientVersion() < 3 ? GL_RENDERBUFFER : GL_FRAMEBUFFER_DEFAULT;
 	mColorbufferPointer[0] = new Renderbuffer(0, colorbuffer);
 	mColorbufferType[0] = defaultRenderbufferType;
 
@@ -715,8 +732,8 @@ DefaultFramebuffer::DefaultFramebuffer(Colorbuffer *colorbuffer, DepthStencilbuf
 	mDepthbufferPointer = depthStencilRenderbuffer;
 	mStencilbufferPointer = depthStencilRenderbuffer;
 
-	mDepthbufferType = (depthStencilRenderbuffer->getDepthSize() != 0) ? GL_FRAMEBUFFER_DEFAULT : GL_NONE;
-	mStencilbufferType = (depthStencilRenderbuffer->getStencilSize() != 0) ? GL_FRAMEBUFFER_DEFAULT : GL_NONE;
+	mDepthbufferType = (depthStencilRenderbuffer->getDepthSize() != 0) ? defaultRenderbufferType : GL_NONE;
+	mStencilbufferType = (depthStencilRenderbuffer->getStencilSize() != 0) ? defaultRenderbufferType : GL_NONE;
 }
 
 }

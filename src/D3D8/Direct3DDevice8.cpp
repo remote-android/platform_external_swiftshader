@@ -2487,13 +2487,13 @@ namespace D3D8
 				switch(value)
 				{
 				case D3DCULL_NONE:
-					renderer->setCullMode(sw::CULL_NONE, true);
+					renderer->setCullMode(sw::CULL_NONE);
 					break;
 				case D3DCULL_CCW:
-					renderer->setCullMode(sw::CULL_COUNTERCLOCKWISE, true);
+					renderer->setCullMode(sw::CULL_COUNTERCLOCKWISE);
 					break;
 				case D3DCULL_CW:
-					renderer->setCullMode(sw::CULL_CLOCKWISE, true);
+					renderer->setCullMode(sw::CULL_CLOCKWISE);
 					break;
 				default:
 					ASSERT(false);

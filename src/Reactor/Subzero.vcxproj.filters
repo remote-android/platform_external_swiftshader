@@ -120,15 +120,6 @@
     <ClCompile Include="Optimizer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CPUID.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ExecutableMemory.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Debug.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(SolutionDir)third_party\subzero\src\IceAssembler.h">
@@ -300,12 +291,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Optimizer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CPUID.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Debug.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
