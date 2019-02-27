@@ -14,11 +14,11 @@
 
 #include "Routine.hpp"
 
-#include "Thread.hpp"
+#include "../Common/Thread.hpp"
 
 #include <cassert>
 
-namespace rr
+namespace sw
 {
 	Routine::Routine()
 	{

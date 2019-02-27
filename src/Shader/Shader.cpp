@@ -1856,10 +1856,7 @@ namespace sw
 
 					if(majorVersion >= 2)
 					{
-						if(src1.type == PARAMETER_SAMPLER)
-						{
-							usedSamplers |= 1 << src1.index;
-						}
+						usedSamplers |= 1 << src1.index;
 					}
 					else
 					{
@@ -1877,47 +1874,53 @@ namespace sw
 	// This is used to know what basic block to return to.
 	void Shader::analyzeCallSites()
 	{
-		int callSiteIndex[MAX_SHADER_CALL_SITES] = {0};
+		int callSiteIndex[2048] = {0};
 
 		for(auto &inst : instruction)
 		{
 			if(inst->opcode == OPCODE_CALL || inst->opcode == OPCODE_CALLNZ)
 			{
-				int label = sw::min(inst->dst.label, static_cast<unsigned int>(MAX_SHADER_CALL_SITES));
+				int label = inst->dst.label;
 
 				inst->dst.callSite = callSiteIndex[label]++;
 			}
 		}
 	}
 
-	void Shader::analyzeIndirectAddressing()
+	void Shader::analyzeDynamicIndexing()
 	{
-		indirectAddressableTemporaries = false;
-		indirectAddressableInput = false;
-		indirectAddressableOutput = false;
+		dynamicallyIndexedTemporaries = false;
+		dynamicallyIndexedInput = false;
+		dynamicallyIndexedOutput = false;
 
 		for(const auto &inst : instruction)
 		{
-			if(inst->dst.rel.type != PARAMETER_VOID)
+			if(inst->dst.rel.type == PARAMETER_ADDR ||
+			   inst->dst.rel.type == PARAMETER_LOOP ||
+			   inst->dst.rel.type == PARAMETER_TEMP ||
+			   inst->dst.rel.type == PARAMETER_CONST)
 			{
 				switch(inst->dst.type)
 				{
-				case PARAMETER_TEMP:   indirectAddressableTemporaries = true; break;
-				case PARAMETER_INPUT:  indirectAddressableInput = true;       break;
-				case PARAMETER_OUTPUT: indirectAddressableOutput = true;      break;
+				case PARAMETER_TEMP:   dynamicallyIndexedTemporaries = true; break;
+				case PARAMETER_INPUT:  dynamicallyIndexedInput = true;       break;
+				case PARAMETER_OUTPUT: dynamicallyIndexedOutput = true;      break;
 				default: break;
 				}
 			}
 
 			for(int j = 0; j < 3; j++)
 			{
-				if(inst->src[j].rel.type != PARAMETER_VOID)
+				if(inst->src[j].rel.type == PARAMETER_ADDR ||
+				   inst->src[j].rel.type == PARAMETER_LOOP ||
+				   inst->src[j].rel.type == PARAMETER_TEMP ||
+				   inst->src[j].rel.type == PARAMETER_CONST)
 				{
 					switch(inst->src[j].type)
 					{
-					case PARAMETER_TEMP:   indirectAddressableTemporaries = true; break;
-					case PARAMETER_INPUT:  indirectAddressableInput = true;       break;
-					case PARAMETER_OUTPUT: indirectAddressableOutput = true;      break;
+					case PARAMETER_TEMP:   dynamicallyIndexedTemporaries = true; break;
+					case PARAMETER_INPUT:  dynamicallyIndexedInput = true;       break;
+					case PARAMETER_OUTPUT: dynamicallyIndexedOutput = true;      break;
 					default: break;
 					}
 				}
