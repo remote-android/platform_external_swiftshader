@@ -14,12 +14,12 @@
 
 #include "LLVMRoutine.hpp"
 
-#include "ExecutableMemory.hpp"
-#include "Thread.hpp"
+#include "../Common/Memory.hpp"
+#include "../Common/Thread.hpp"
+#include "../Common/Types.hpp"
 
-namespace rr
+namespace sw
 {
-#if REACTOR_LLVM_VERSION < 7
 	LLVMRoutine::LLVMRoutine(int bufferSize) : bufferSize(bufferSize)
 	{
 		void *memory = allocateExecutable(bufferSize);
@@ -43,10 +43,4 @@ namespace rr
 	{
 		return functionSize - static_cast<int>((uintptr_t)entry - (uintptr_t)buffer);
 	}
-#else
-	LLVMRoutine::~LLVMRoutine()
-	{
-		dtor(reactorJIT, moduleKey);
-	}
-#endif
 }

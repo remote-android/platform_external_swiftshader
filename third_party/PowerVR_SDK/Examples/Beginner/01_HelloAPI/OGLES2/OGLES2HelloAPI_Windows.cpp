@@ -4,7 +4,7 @@
 
  @Title        OpenGL ES 2.0 HelloAPI Tutorial
 
- @Version
+ @Version      
 
  @Copyright    Copyright (c) Imagination Technologies Limited.
 
@@ -90,7 +90,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
  @Return		bool			true if no EGL error was detected
  @Description	Tests for an EGL error and prints it
 ******************************************************************************/
-bool TestEGLError(HWND hWnd, const char* pszLocation)
+bool TestEGLError(HWND hWnd, char* pszLocation)
 {
 	/*
 		eglGetError returns the last error that has happened using egl,
@@ -107,36 +107,6 @@ bool TestEGLError(HWND hWnd, const char* pszLocation)
 	}
 
 	return true;
-}
-
-/*!****************************************************************************
- @Function		Cleanup
- @Input			eglDisplay		Handle to the EGL display
- @Input			hWnd			Handle to the window
- @Input			hDC				Handle to the device context
- @Return		int				result code to OS
- @Description	Clean up before program termination on error or normal exit
-******************************************************************************/
-int Cleanup(EGLDisplay eglDisplay, HWND hWnd, HDC hDC)
-{
-	/*
-		eglTerminate takes care of destroying any context or surface created
-		with this display, so we don't need to call eglDestroySurface or
-		eglDestroyContext here.
-	*/
-
-	eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	eglTerminate(eglDisplay);
-
-	/*
-		Destroy the eglWindow.
-		This is platform specific and delegated to a separate function.
-	*/
-
-	// Release the device context
-	if (hDC) ReleaseDC(hWnd, hDC);
-
-	return 0;
 }
 
 /*!****************************************************************************
@@ -171,12 +141,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 	};
 
 	// Fragment and vertex shaders code
-	const char* pszFragShader = "\
+	char* pszFragShader = "\
 		void main (void)\
 		{\
 			gl_FragColor = vec4(1.0, 1.0, 0.66 ,1.0);\
 		}";
-	const char* pszVertShader = "\
+	char* pszVertShader = "\
 		attribute highp vec4	myVertex;\
 		uniform mediump mat4	myPMVMatrix;\
 		void main(void)\
@@ -222,7 +192,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 	if (!hDC)
 	{
 		MessageBox(0, _T("Failed to create the device context"), _T("Error"), MB_OK|MB_ICONEXCLAMATION);
-		return Cleanup(eglDisplay, hWnd, hDC);
+		goto cleanup;
 	}
 
 	/*
@@ -250,7 +220,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 	if (!eglInitialize(eglDisplay, &iMajorVersion, &iMinorVersion))
 	{
 		MessageBox(0, _T("eglInitialize() failed."), _T("Error"), MB_OK|MB_ICONEXCLAMATION);
-		return Cleanup(eglDisplay, hWnd, hDC);
+		goto cleanup;
 	}
 
 	/*
@@ -262,7 +232,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 	eglBindAPI(EGL_OPENGL_ES_API);
 	if (!TestEGLError(hWnd, "eglBindAPI"))
 	{
-		return Cleanup(eglDisplay, hWnd, hDC);
+		goto cleanup;
 	}
 
 	/*
@@ -294,7 +264,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 	if (!eglChooseConfig(eglDisplay, pi32ConfigAttribs, &eglConfig, 1, &iConfigs) || (iConfigs != 1))
 	{
 		MessageBox(0, _T("eglChooseConfig() failed."), _T("Error"), MB_OK|MB_ICONEXCLAMATION);
-		return Cleanup(eglDisplay, hWnd, hDC);
+		goto cleanup;
 	}
 
 	/*
@@ -316,7 +286,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 
 	if (!TestEGLError(hWnd, "eglCreateWindowSurface"))
 	{
-		return Cleanup(eglDisplay, hWnd, hDC);
+		goto cleanup;
 	}
 
 	/*
@@ -329,7 +299,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 	eglContext = eglCreateContext(eglDisplay, eglConfig, NULL, ai32ContextAttribs);
 	if (!TestEGLError(hWnd, "eglCreateContext"))
 	{
-		return Cleanup(eglDisplay, hWnd, hDC);
+		goto cleanup;
 	}
 
 	/*
@@ -345,7 +315,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 	eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 	if (!TestEGLError(hWnd, "eglMakeCurrent"))
 	{
-		return Cleanup(eglDisplay, hWnd, hDC);
+		goto cleanup;
 	}
 
 	/*
@@ -385,7 +355,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 		MessageBox(hWnd, i32InfoLogLength ? pszInfoLog : _T(""), _T("Failed to compile fragment shader"), MB_OK|MB_ICONEXCLAMATION);
 		delete[] pszInfoLog;
 
-		return Cleanup(eglDisplay, hWnd, hDC);
+		goto cleanup;
 	}
 
 	// Loads the vertex shader in the same way
@@ -405,7 +375,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 
 		delete[] pszInfoLog;
 
-		return Cleanup(eglDisplay, hWnd, hDC);
+		goto cleanup;
 	}
 
 	// Create the shader program
@@ -434,7 +404,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 		MessageBox(hWnd, i32InfoLogLength ? pszInfoLog : _T(""), _T("Failed to link program"), MB_OK|MB_ICONEXCLAMATION);
 
 		delete[] pszInfoLog;
-		return Cleanup(eglDisplay, hWnd, hDC);
+		goto cleanup;
 	}
 
 	// Actually use the created program
@@ -449,7 +419,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 
 	// We're going to draw a triangle to the screen so create a vertex buffer object for our triangle
 	GLuint	ui32Vbo; // Vertex buffer object handle
-
+	
 	// Interleaved vertex data
 	GLfloat afVertices[] = {	-0.4f,-0.4f,0.0f, // Position
 								0.4f ,-0.4f,0.0f,
@@ -512,7 +482,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 		eglSwapBuffers(eglDisplay, eglSurface);
 		if (!TestEGLError(hWnd, "eglSwapBuffers"))
 		{
-			return Cleanup(eglDisplay, hWnd, hDC);
+			goto cleanup;
 		}
 
 		// Managing the window messages
@@ -533,8 +503,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, TCHAR *lpCmdLin
 
 	/*
 		Step 10 - Terminate OpenGL ES and destroy the window (if present).
+		eglTerminate takes care of destroying any context or surface created
+		with this display, so we don't need to call eglDestroySurface or
+		eglDestroyContext here.
 	*/
-	return Cleanup(eglDisplay, hWnd, hDC);
+cleanup:
+	eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	eglTerminate(eglDisplay);
+
+	/*
+		Step 11 - Destroy the eglWindow.
+		Again, this is platform specific and delegated to a separate function.
+	*/
+
+	// Release the device context
+	if (hDC) ReleaseDC(hWnd, hDC);
+
+	// Destroy the eglWindow
+	return 0;
 }
 
 /******************************************************************************

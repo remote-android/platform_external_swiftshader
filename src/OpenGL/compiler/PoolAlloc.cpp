@@ -18,7 +18,6 @@
 #include <stdint.h>
 #endif
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "InitializeGlobals.h"
 #include "osinclude.h"

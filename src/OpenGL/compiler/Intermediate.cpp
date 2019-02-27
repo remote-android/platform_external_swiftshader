@@ -529,8 +529,8 @@ TIntermTyped* TIntermediate::addUnaryMath(TOperator op, TIntermTyped* child, con
 //
 // This is the safe way to change the operator on an aggregate, as it
 // does lots of error checking and fixing.  Especially for establishing
-// a function call's operation on its set of parameters.  Sequences
-// of instructions are also aggregates, but they just directly set
+// a function call's operation on it's set of parameters.  Sequences
+// of instructions are also aggregates, but they just direnctly set
 // their operator to EOpSequence.
 //
 // Returns an aggregate node, which could be the one passed in if
@@ -1600,18 +1600,18 @@ TIntermTyped* TIntermConstantUnion::fold(TOperator op, TIntermTyped* constantNod
 					infoSink.info.message(EPrefixInternalError, "Constant Folding cannot be done for matrix times vector", getLine());
 					return 0;
 				}
-				tempConstArray = new ConstantUnion[getSecondarySize()];
+				tempConstArray = new ConstantUnion[getNominalSize()];
 
 				{// support MSVC++6.0
-					for (int rows = getSecondarySize(), i = 0; i < rows; i++) {
+					for (int size = getNominalSize(), i = 0; i < size; i++) {
 						tempConstArray[i].setFConst(0.0f);
-						for (int cols = getNominalSize(), j = 0; j < cols; j++) {
-							tempConstArray[i].setFConst(tempConstArray[i].getFConst() + ((unionArray[j*rows + i].getFConst()) * rightUnionArray[j].getFConst()));
+						for (int j = 0; j < size; j++) {
+							tempConstArray[i].setFConst(tempConstArray[i].getFConst() + ((unionArray[j*size + i].getFConst()) * rightUnionArray[j].getFConst()));
 						}
 					}
 				}
 
-				tempNode = new TIntermConstantUnion(tempConstArray, TType(EbtFloat, EbpUndefined, EvqConstExpr, getSecondarySize()));
+				tempNode = new TIntermConstantUnion(tempConstArray, node->getType());
 				tempNode->setLine(getLine());
 
 				return tempNode;
@@ -1622,19 +1622,16 @@ TIntermTyped* TIntermConstantUnion::fold(TOperator op, TIntermTyped* constantNod
 					return 0;
 				}
 
-				tempConstArray = new ConstantUnion[node->getNominalSize()];
+				tempConstArray = new ConstantUnion[getNominalSize()];
 				{// support MSVC++6.0
-					for (int cols = node->getNominalSize(), i = 0; i < cols; i++) {
+					for (int size = getNominalSize(), i = 0; i < size; i++) {
 						tempConstArray[i].setFConst(0.0f);
-						for (int rows = node->getSecondarySize(), j = 0; j < rows; j++) {
-							tempConstArray[i].setFConst(tempConstArray[i].getFConst() + ((unionArray[j].getFConst()) * rightUnionArray[i*rows + j].getFConst()));
+						for (int j = 0; j < size; j++) {
+							tempConstArray[i].setFConst(tempConstArray[i].getFConst() + ((unionArray[j].getFConst()) * rightUnionArray[i*size + j].getFConst()));
 						}
 					}
 				}
-
-				tempNode = new TIntermConstantUnion(tempConstArray, TType(EbtFloat, EbpUndefined, EvqConstExpr, node->getNominalSize()));
-				tempNode->setLine(getLine());
-				return tempNode;
+				break;
 
 			case EOpLogicalAnd: // this code is written for possible future use, will not get executed currently
 				tempConstArray = new ConstantUnion[objectSize];
@@ -1974,7 +1971,7 @@ TIntermTyped* TIntermConstantUnion::fold(TOperator op, TIntermTyped* constantNod
 				case EOpFloatBitsToInt:
 					switch(basicType) {
 					case EbtFloat:
-						tempConstArray[i].setIConst(sw::bit_cast<int>(unionArray[i].getFConst()));
+						tempConstArray[i].setIConst(sw::bitCast<int>(unionArray[i].getFConst()));
 						type.setBasicType(EbtInt);
 						break;
 					default:
@@ -1986,7 +1983,7 @@ TIntermTyped* TIntermConstantUnion::fold(TOperator op, TIntermTyped* constantNod
 				case EOpFloatBitsToUint:
 					switch(basicType) {
 					case EbtFloat:
-						tempConstArray[i].setUConst(sw::bit_cast<unsigned int>(unionArray[i].getFConst()));
+						tempConstArray[i].setUConst(sw::bitCast<unsigned int>(unionArray[i].getFConst()));
 						type.setBasicType(EbtUInt);
 						break;
 					default:
@@ -1997,7 +1994,7 @@ TIntermTyped* TIntermConstantUnion::fold(TOperator op, TIntermTyped* constantNod
 				case EOpIntBitsToFloat:
 					switch(basicType) {
 					case EbtInt:
-						tempConstArray[i].setFConst(sw::bit_cast<float>(unionArray[i].getIConst()));
+						tempConstArray[i].setFConst(sw::bitCast<float>(unionArray[i].getIConst()));
 						type.setBasicType(EbtFloat);
 						break;
 					default:
@@ -2008,7 +2005,7 @@ TIntermTyped* TIntermConstantUnion::fold(TOperator op, TIntermTyped* constantNod
 				case EOpUintBitsToFloat:
 					switch(basicType) {
 					case EbtUInt:
-						tempConstArray[i].setFConst(sw::bit_cast<float>(unionArray[i].getUConst()));
+						tempConstArray[i].setFConst(sw::bitCast<float>(unionArray[i].getUConst()));
 						type.setBasicType(EbtFloat);
 						break;
 					default:

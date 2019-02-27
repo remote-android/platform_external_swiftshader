@@ -15,7 +15,6 @@
 #include "Reactor.hpp"
 
 #include "Optimizer.hpp"
-#include "ExecutableMemory.hpp"
 
 #include "src/IceTypes.h"
 #include "src/IceCfg.h"
@@ -27,11 +26,6 @@
 
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_os_ostream.h"
-#include "llvm/Support/Compiler.h"
-
-#if __has_feature(memory_sanitizer)
-#include <sanitizer/msan_interface.h>
-#endif
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -48,7 +42,7 @@
 #endif
 #endif
 
-#include <mutex>
+//#include <mutex>
 #include <limits>
 #include <iostream>
 #include <cassert>
@@ -59,7 +53,7 @@ namespace
 	Ice::Cfg *function = nullptr;
 	Ice::CfgNode *basicBlock = nullptr;
 	Ice::CfgLocalAllocatorScope *allocator = nullptr;
-	rr::Routine *routine = nullptr;
+	sw::Routine *routine = nullptr;
 
 	std::mutex codegenMutex;
 
@@ -102,11 +96,9 @@ namespace
 
 		static bool detectARM()
 		{
-			#if defined(__arm__) || defined(__aarch64__)
+			#if defined(__arm__)
 				return true;
 			#elif defined(__i386__) || defined(__x86_64__)
-				return false;
-			#elif defined(__mips__)
 				return false;
 			#else
 				#error "Unknown architecture"
@@ -131,7 +123,7 @@ namespace
 	const bool emulateMismatchedBitCast = CPUID::ARM;
 }
 
-namespace rr
+namespace sw
 {
 	enum EmulatedType
 	{
@@ -217,6 +209,8 @@ namespace rr
 	{
 		const SectionHeader *target = elfSection(elfHeader, relocationTable.sh_info);
 
+		intptr_t address = (intptr_t)elfHeader + target->sh_offset;
+		int32_t *patchSite = (int*)(address + relocation.r_offset);
 		uint32_t index = relocation.getSymbol();
 		int table = relocationTable.sh_link;
 		void *symbolValue = nullptr;
@@ -247,9 +241,6 @@ namespace rr
 				return nullptr;
 			}
 		}
-
-		intptr_t address = (intptr_t)elfHeader + target->sh_offset;
-		unaligned_ptr<int32_t> patchSite = (int32_t*)(address + relocation.r_offset);
 
 		if(CPUID::ARM)
 		{
@@ -302,6 +293,8 @@ namespace rr
 	{
 		const SectionHeader *target = elfSection(elfHeader, relocationTable.sh_info);
 
+		intptr_t address = (intptr_t)elfHeader + target->sh_offset;
+		int32_t *patchSite = (int*)(address + relocation.r_offset);
 		uint32_t index = relocation.getSymbol();
 		int table = relocationTable.sh_link;
 		void *symbolValue = nullptr;
@@ -333,23 +326,19 @@ namespace rr
 			}
 		}
 
-		intptr_t address = (intptr_t)elfHeader + target->sh_offset;
-		unaligned_ptr<int32_t> patchSite32 = (int32_t*)(address + relocation.r_offset);
-		unaligned_ptr<int64_t> patchSite64 = (int64_t*)(address + relocation.r_offset);
-
 		switch(relocation.getType())
 		{
 		case R_X86_64_NONE:
 			// No relocation
 			break;
 		case R_X86_64_64:
-			*patchSite64 = (int64_t)((intptr_t)symbolValue + *patchSite64 + relocation.r_addend);
+			*(int64_t*)patchSite = (int64_t)((intptr_t)symbolValue + *(int64_t*)patchSite) + relocation.r_addend;
 			break;
 		case R_X86_64_PC32:
-			*patchSite32 = (int32_t)((intptr_t)symbolValue + *patchSite32 - (intptr_t)patchSite32 + relocation.r_addend);
+			*patchSite = (int32_t)((intptr_t)symbolValue + *patchSite - (intptr_t)patchSite) + relocation.r_addend;
 			break;
 		case R_X86_64_32S:
-			*patchSite32 = (int32_t)((intptr_t)symbolValue + *patchSite32 + relocation.r_addend);
+			*patchSite = (int32_t)((intptr_t)symbolValue + *patchSite) + relocation.r_addend;
 			break;
 		default:
 			assert(false && "Unsupported relocation type");
@@ -376,10 +365,6 @@ namespace rr
 			assert(sizeof(void*) == 8 && elfHeader->e_machine == EM_X86_64);
 		#elif defined(__arm__)
 			assert(sizeof(void*) == 4 && elfHeader->e_machine == EM_ARM);
-		#elif defined(__aarch64__)
-			assert(sizeof(void*) == 8 && elfHeader->e_machine == EM_AARCH64);
-		#elif defined(__mips__)
-			assert(sizeof(void*) == 4 && elfHeader->e_machine == EM_MIPS);
 		#else
 			#error "Unsupported platform"
 		#endif
@@ -433,12 +418,20 @@ namespace rr
 
 		T *allocate(size_type n)
 		{
-			return (T*)allocateExecutable(sizeof(T) * n);
+			#if defined(_WIN32)
+				return (T*)VirtualAlloc(NULL, sizeof(T) * n, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+			#else
+				return (T*)mmap(nullptr, sizeof(T) * n, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			#endif
 		}
 
 		void deallocate(T *p, size_type n)
 		{
-			deallocateExecutable(p, sizeof(T) * n);
+			#if defined(_WIN32)
+				VirtualFree(p, 0, MEM_RELEASE);
+			#else
+				munmap(p, sizeof(T) * n);
+			#endif
 		}
 	};
 
@@ -533,9 +526,6 @@ namespace rr
 		#if defined(__arm__)
 			Flags.setTargetArch(Ice::Target_ARM32);
 			Flags.setTargetInstructionSet(Ice::ARM32InstructionSet_HWDivArm);
-		#elif defined(__mips__)
-			Flags.setTargetArch(Ice::Target_MIPS32);
-			Flags.setTargetInstructionSet(Ice::BaseInstructionSet);
 		#else   // x86
 			Flags.setTargetArch(sizeof(void*) == 8 ? Ice::Target_X8664 : Ice::Target_X8632);
 			Flags.setTargetInstructionSet(CPUID::SSE4_1 ? Ice::X86InstructionSet_SSE4_1 : Ice::X86InstructionSet_SSE2);
@@ -578,14 +568,16 @@ namespace rr
 		::codegenMutex.unlock();
 	}
 
-	Routine *Nucleus::acquireRoutine(const char *name, bool runOptimizations)
+	Routine *Nucleus::acquireRoutine(const wchar_t *name, bool runOptimizations)
 	{
 		if(basicBlock->getInsts().empty() || basicBlock->getInsts().back().getKind() != Ice::Inst::Ret)
 		{
 			createRetVoid();
 		}
 
-		::function->setFunctionName(Ice::GlobalString::createWithString(::context, name));
+		std::wstring wideName(name);
+		std::string asciiName(wideName.begin(), wideName.end());
+		::function->setFunctionName(Ice::GlobalString::createWithString(::context, asciiName));
 
 		optimize();
 
@@ -619,7 +611,7 @@ namespace rr
 
 	void Nucleus::optimize()
 	{
-		rr::optimize(::function);
+		sw::optimize(::function);
 	}
 
 	Value *Nucleus::allocateStackVariable(Type *t, int arraySize)
@@ -902,17 +894,6 @@ namespace rr
 
 	Value *Nucleus::createStore(Value *value, Value *ptr, Type *type, bool isVolatile, unsigned int align)
 	{
-		#if __has_feature(memory_sanitizer)
-			// Mark all (non-stack) memory writes as initialized by calling __msan_unpoison
-			if(align != 0)
-			{
-				auto call = Ice::InstCall::create(::function, 2, nullptr, ::context->getConstantInt64(reinterpret_cast<intptr_t>(__msan_unpoison)), false);
-				call->addArg(ptr);
-				call->addArg(::context->getConstantInt64(typeSize(type)));
-				::basicBlock->appendInst(call);
-			}
-		#endif
-
 		int valueType = (int)reinterpret_cast<intptr_t>(type);
 
 		if((valueType & EmulatedBits) && (align != 0))   // Narrow vector not stored on stack.
@@ -6387,39 +6368,6 @@ namespace rr
 		return T(Ice::IceType_v4i32);
 	}
 
-	Half::Half(RValue<Float> cast)
-	{
-		UInt fp32i = As<UInt>(cast);
-		UInt abs = fp32i & 0x7FFFFFFF;
-		UShort fp16i((fp32i & 0x80000000) >> 16); // sign
-
-		If(abs > 0x47FFEFFF) // Infinity
-		{
-			fp16i |= UShort(0x7FFF);
-		}
-		Else
-		{
-			If(abs < 0x38800000) // Denormal
-			{
-				Int mantissa = (abs & 0x007FFFFF) | 0x00800000;
-				Int e = 113 - (abs >> 23);
-				abs = IfThenElse(e < 24, mantissa >> e, Int(0));
-				fp16i |= UShort((abs + 0x00000FFF + ((abs >> 13) & 1)) >> 13);
-			}
-			Else
-			{
-				fp16i |= UShort((abs + 0xC8000000 + 0x00000FFF + ((abs >> 13) & 1)) >> 13);
-			}
-		}
-
-		storeValue(fp16i.loadValue());
-	}
-
-	Type *Half::getType()
-	{
-		return T(Ice::IceType_i16);
-	}
-
 	Float::Float(RValue<Int> cast)
 	{
 		Value *integer = Nucleus::createSIToFP(cast.value, Float::getType());
@@ -6433,36 +6381,6 @@ namespace rr
 		                       As<Float>((As<Int>(cast) >> 31) & As<Int>(Float(0x80000000u)));
 
 		storeValue(result.value);
-	}
-
-	Float::Float(RValue<Half> cast)
-	{
-		Int fp16i(As<UShort>(cast));
-
-		Int s = (fp16i >> 15) & 0x00000001;
-		Int e = (fp16i >> 10) & 0x0000001F;
-		Int m = fp16i & 0x000003FF;
-
-		UInt fp32i(s << 31);
-		If(e == 0)
-		{
-			If(m != 0)
-			{
-				While((m & 0x00000400) == 0)
-				{
-					m <<= 1;
-					e -= 1;
-				}
-
-				fp32i |= As<UInt>(((e + (127 - 15) + 1) << 23) | ((m & ~0x00000400) << 13));
-			}
-		}
-		Else
-		{
-			fp32i |= As<UInt>(((e + (127 - 15)) << 23) | (m << 13));
-		}
-
-		storeValue(As<Float>(fp32i).value);
 	}
 
 	Float::Float(float x)

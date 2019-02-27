@@ -17,6 +17,7 @@
 #include "src/IceCfg.h"
 #include "src/IceCfgNode.h"
 
+#include <unordered_map>
 #include <vector>
 
 namespace
@@ -60,35 +61,9 @@ namespace
 			std::vector<Ice::Inst*> stores;
 		};
 
-		struct LoadStoreInst
-		{
-			LoadStoreInst(Ice::Inst* inst, bool isStore)
-			  : inst(inst),
-			    address(isStore ? storeAddress(inst) : loadAddress(inst)),
-			    isStore(isStore)
-			{
-			}
-
-			Ice::Inst* inst;
-			Ice::Operand *address;
-			bool isStore;
-		};
-
-		Optimizer::Uses* getUses(Ice::Operand*);
-		void setUses(Ice::Operand*, Optimizer::Uses*);
-		bool hasUses(Ice::Operand*) const;
-
-		Ice::CfgNode* getNode(Ice::Inst*);
-		void setNode(Ice::Inst*, Ice::CfgNode*);
-
-		Ice::Inst* getDefinition(Ice::Variable*);
-		void setDefinition(Ice::Variable*, Ice::Inst*);
-
-		const std::vector<LoadStoreInst>& getLoadStoreInsts(Ice::CfgNode*);
-		void setLoadStoreInsts(Ice::CfgNode*, std::vector<LoadStoreInst>*);
-		bool hasLoadStoreInsts(Ice::CfgNode* node) const;
-
-		std::vector<Optimizer::Uses*> allocatedUses;
+		std::unordered_map<Ice::Operand*, Uses> uses;
+		std::unordered_map<Ice::Inst*, Ice::CfgNode*> node;
+		std::unordered_map<Ice::Variable*, Ice::Inst*> definition;
 	};
 
 	void Optimizer::run(Ice::Cfg *function)
@@ -103,12 +78,6 @@ namespace
 		eliminateLoadsFollowingSingleStore();
 		optimizeStoresInSingleBasicBlock();
 		eliminateDeadCode();
-
-		for(auto uses : allocatedUses)
-		{
-			delete uses;
-		}
-		allocatedUses.clear();
 	}
 
 	void Optimizer::eliminateDeadCode()
@@ -150,17 +119,12 @@ namespace
 
 			if(!llvm::isa<Ice::InstAlloca>(alloca))
 			{
-				break;   // Allocas are all at the top
+				return;   // Allocas are all at the top
 			}
 
 			Ice::Operand *address = alloca.getDest();
-
-			if(!hasUses(address))
-			{
-				continue;
-			}
-
-			const auto &addressUses = *getUses(address);
+			const auto &addressEntry = uses.find(address);
+			const auto &addressUses = addressEntry->second;
 
 			if(!addressUses.areOnlyLoadStore())
 			{
@@ -173,29 +137,26 @@ namespace
 				{
 					Ice::Variable *loadData = load->getDest();
 
-					if(hasUses(loadData))
+					for(Ice::Inst *use : uses[loadData])
 					{
-						for(Ice::Inst *use : *getUses(loadData))
+						for(Ice::SizeT i = 0; i < use->getSrcSize(); i++)
 						{
-							for(Ice::SizeT i = 0; i < use->getSrcSize(); i++)
+							if(use->getSrc(i) == loadData)
 							{
-								if(use->getSrc(i) == loadData)
-								{
-									auto *undef = context->getConstantUndef(loadData->getType());
+								auto *undef = context->getConstantUndef(loadData->getType());
 
-									use->replaceSource(i, undef);
-								}
+								use->replaceSource(i, undef);
 							}
 						}
-
-						setUses(loadData, nullptr);
 					}
+
+					uses.erase(loadData);
 
 					load->setDeleted();
 				}
 
 				alloca.setDeleted();
-				setUses(address, nullptr);
+				uses.erase(addressEntry);
 			}
 		}
 	}
@@ -213,17 +174,12 @@ namespace
 
 			if(!llvm::isa<Ice::InstAlloca>(alloca))
 			{
-				break;   // Allocas are all at the top
+				return;   // Allocas are all at the top
 			}
 
 			Ice::Operand *address = alloca.getDest();
-
-			if(!hasUses(address))
-			{
-				continue;
-			}
-
-			auto &addressUses = *getUses(address);
+			const auto &addressEntry = uses.find(address);
+			auto &addressUses = addressEntry->second;
 
 			if(!addressUses.areOnlyLoadStore())
 			{
@@ -280,26 +236,23 @@ namespace
 
 						alloca.setDeleted();
 						store->setDeleted();
-						setUses(address, nullptr);
+						uses.erase(address);
 
-						if(hasUses(storeValue))
+						auto &valueUses = uses[storeValue];
+
+						for(size_t i = 0; i < valueUses.size(); i++)
 						{
-							auto &valueUses = *getUses(storeValue);
-
-							for(size_t i = 0; i < valueUses.size(); i++)
+							if(valueUses[i] == store)
 							{
-								if(valueUses[i] == store)
-								{
-									valueUses[i] = valueUses.back();
-									valueUses.pop_back();
-									break;
-								}
+								valueUses[i] = valueUses.back();
+								valueUses.pop_back();
+								break;
 							}
+						}
 
-							if(valueUses.empty())
-							{
-								setUses(storeValue, nullptr);
-							}
+						if(valueUses.empty())
+						{
+							uses.erase(storeValue);
 						}
 
 						break;
@@ -313,8 +266,6 @@ namespace
 	{
 		Ice::CfgNode *entryBlock = function->getEntryNode();
 
-		std::vector<std::vector<LoadStoreInst>* > allocatedVectors;
-
 		for(Ice::Inst &alloca : entryBlock->getInsts())
 		{
 			if(alloca.isDeleted())
@@ -324,29 +275,24 @@ namespace
 
 			if(!llvm::isa<Ice::InstAlloca>(alloca))
 			{
-				break;   // Allocas are all at the top
+				return;   // Allocas are all at the top
 			}
 
 			Ice::Operand *address = alloca.getDest();
-
-			if(!hasUses(address))
-			{
-				continue;
-			}
-
-			const auto &addressUses = *getUses(address);
+			const auto &addressEntry = uses.find(address);
+			const auto &addressUses = addressEntry->second;
 
 			if(!addressUses.areOnlyLoadStore())
 			{
 				continue;
 			}
 
-			Ice::CfgNode *singleBasicBlock = getNode(addressUses.stores[0]);
+			Ice::CfgNode *singleBasicBlock = node[addressUses.stores[0]];
 
 			for(size_t i = 1; i < addressUses.stores.size(); i++)
 			{
 				Ice::Inst *store = addressUses.stores[i];
-				if(getNode(store) != singleBasicBlock)
+				if(node[store] != singleBasicBlock)
 				{
 					singleBasicBlock = nullptr;
 					break;
@@ -355,80 +301,68 @@ namespace
 
 			if(singleBasicBlock)
 			{
-				if(!hasLoadStoreInsts(singleBasicBlock))
-				{
-					std::vector<LoadStoreInst>* loadStoreInstVector = new std::vector<LoadStoreInst>();
-					setLoadStoreInsts(singleBasicBlock, loadStoreInstVector);
-					allocatedVectors.push_back(loadStoreInstVector);
-					for(Ice::Inst &inst : singleBasicBlock->getInsts())
-					{
-						if(inst.isDeleted())
-						{
-							continue;
-						}
-
-						bool isStoreInst = isStore(inst);
-						bool isLoadInst = isLoad(inst);
-
-						if(isStoreInst || isLoadInst)
-						{
-							loadStoreInstVector->push_back(LoadStoreInst(&inst, isStoreInst));
-						}
-					}
-				}
-
+				auto &insts = singleBasicBlock->getInsts();
 				Ice::Inst *store = nullptr;
 				Ice::Operand *storeValue = nullptr;
 				bool unmatchedLoads = false;
 
-				for (auto& loadStoreInst : getLoadStoreInsts(singleBasicBlock))
+				for(Ice::Inst &inst : insts)
 				{
-					Ice::Inst* inst = loadStoreInst.inst;
-
-					if((loadStoreInst.address != address) || inst->isDeleted())
+					if(inst.isDeleted())
 					{
 						continue;
 					}
 
-					if(loadStoreInst.isStore)
+					if(isStore(inst))
 					{
+						if(storeAddress(&inst) != address)
+						{
+							continue;
+						}
+
 						// New store found. If we had a previous one, try to eliminate it.
 						if(store && !unmatchedLoads)
 						{
 							// If the previous store is wider than the new one, we can't eliminate it
 							// because there could be a wide load reading its non-overwritten data.
-							if(storeSize(inst) >= storeSize(store))
+							if(storeSize(&inst) >= storeSize(store))
 							{
 								deleteInstruction(store);
 							}
 						}
 
-						store = inst;
+						store = &inst;
 						storeValue = storeData(store);
 						unmatchedLoads = false;
 					}
-					else
+					else if(isLoad(inst))
 					{
-						if(!loadTypeMatchesStore(inst, store))
+						Ice::Inst *load = &inst;
+
+						if(loadAddress(load) != address)
+						{
+							continue;
+						}
+
+						if(!loadTypeMatchesStore(load, store))
 						{
 							unmatchedLoads = true;
 							continue;
 						}
 
-						replace(inst, storeValue);
+						replace(load, storeValue);
 					}
 				}
 			}
-		}
-
-		for(auto loadStoreInstVector : allocatedVectors)
-		{
-			delete loadStoreInstVector;
 		}
 	}
 
 	void Optimizer::analyzeUses(Ice::Cfg *function)
 	{
+		uses.clear();
+		node.clear();
+		definition.clear();
+
 		for(Ice::CfgNode *basicBlock : function->getNodes())
 		{
 			for(Ice::Inst &instruction : basicBlock->getInsts())
@@ -438,11 +372,8 @@ namespace
 					continue;
 				}
 
-				setNode(&instruction, basicBlock);
-				if(instruction.getDest())
-				{
-					setDefinition(instruction.getDest(), &instruction);
-				}
+				node[&instruction] = basicBlock;
+				definition[instruction.getDest()] = &instruction;
 
 				for(Ice::SizeT i = 0; i < instruction.getSrcSize(); i++)
 				{
@@ -458,7 +389,7 @@ namespace
 					if(i == unique)
 					{
 						Ice::Operand *src = instruction.getSrc(i);
-						getUses(src)->insert(src, &instruction);
+						uses[src].insert(src, &instruction);
 					}
 				}
 			}
@@ -474,25 +405,22 @@ namespace
 			newValue = context->getConstantUndef(oldValue->getType());
 		}
 
-		if(hasUses(oldValue))
+		for(Ice::Inst *use : uses[oldValue])
 		{
-			for(Ice::Inst *use : *getUses(oldValue))
+			assert(!use->isDeleted());   // Should have been removed from uses already
+
+			for(Ice::SizeT i = 0; i < use->getSrcSize(); i++)
 			{
-				assert(!use->isDeleted());   // Should have been removed from uses already
-
-				for(Ice::SizeT i = 0; i < use->getSrcSize(); i++)
+				if(use->getSrc(i) == oldValue)
 				{
-					if(use->getSrc(i) == oldValue)
-					{
-						use->replaceSource(i, newValue);
-					}
+					use->replaceSource(i, newValue);
 				}
-
-				getUses(newValue)->insert(newValue, use);
 			}
 
-			setUses(oldValue, nullptr);
+			uses[newValue].insert(newValue, use);
 		}
+
+		uses.erase(oldValue);
 
 		deleteInstruction(instruction);
 	}
@@ -510,19 +438,21 @@ namespace
 		{
 			Ice::Operand *src = instruction->getSrc(i);
 
-			if(hasUses(src))
+			const auto &srcEntry = uses.find(src);
+
+			if(srcEntry != uses.end())
 			{
-				auto &srcUses = *getUses(src);
+				auto &srcUses = srcEntry->second;
 
 				srcUses.erase(instruction);
 
 				if(srcUses.empty())
 				{
-					setUses(src, nullptr);
+					uses.erase(srcEntry);
 
 					if(Ice::Variable *var = llvm::dyn_cast<Ice::Variable>(src))
 					{
-						deleteInstruction(getDefinition(var));
+						deleteInstruction(definition[var]);
 					}
 				}
 			}
@@ -535,25 +465,17 @@ namespace
 
 		if(dest)
 		{
-			return (!hasUses(dest) || getUses(dest)->empty()) && !instruction->hasSideEffects();
+			return uses[dest].empty() && !instruction->hasSideEffects();
 		}
 		else if(isStore(*instruction))
 		{
 			if(Ice::Variable *address = llvm::dyn_cast<Ice::Variable>(storeAddress(instruction)))
 			{
-				Ice::Inst *def = getDefinition(address);
+				Ice::Inst *def = definition[address];
 
 				if(def && llvm::isa<Ice::InstAlloca>(def))
 				{
-					if(hasUses(address))
-					{
-						Optimizer::Uses* uses = getUses(address);
-						return uses->size() == uses->stores.size();   // Dead if all uses are stores
-					}
-					else
-					{
-						return true; // No uses
-					}
+					return uses[address].size() == uses[address].stores.size();   // Dead if all uses are stores
 				}
 			}
 		}
@@ -707,63 +629,6 @@ namespace
 		return false;
 	}
 
-	Optimizer::Uses* Optimizer::getUses(Ice::Operand* operand)
-	{
-		Optimizer::Uses* uses = (Optimizer::Uses*)operand->Ice::Operand::getExternalData();
-		if(!uses)
-		{
-			uses = new Optimizer::Uses;
-			setUses(operand, uses);
-			allocatedUses.push_back(uses);
-		}
-		return uses;
-	}
-
-	void Optimizer::setUses(Ice::Operand* operand, Optimizer::Uses* uses)
-	{
-		operand->Ice::Operand::setExternalData(uses);
-	}
-
-	bool Optimizer::hasUses(Ice::Operand* operand) const
-	{
-		return operand->Ice::Operand::getExternalData() != nullptr;
-	}
-
-	Ice::CfgNode* Optimizer::getNode(Ice::Inst* inst)
-	{
-		return (Ice::CfgNode*)inst->Ice::Inst::getExternalData();
-	}
-
-	void Optimizer::setNode(Ice::Inst* inst, Ice::CfgNode* node)
-	{
-		inst->Ice::Inst::setExternalData(node);
-	}
-
-	Ice::Inst* Optimizer::getDefinition(Ice::Variable* var)
-	{
-		return (Ice::Inst*)var->Ice::Variable::getExternalData();
-	}
-
-	void Optimizer::setDefinition(Ice::Variable* var, Ice::Inst* inst)
-	{
-		var->Ice::Variable::setExternalData(inst);
-	}
-
-	const std::vector<Optimizer::LoadStoreInst>& Optimizer::getLoadStoreInsts(Ice::CfgNode* node)
-	{
-		return *((const std::vector<LoadStoreInst>*)node->Ice::CfgNode::getExternalData());
-	}
-
-	void Optimizer::setLoadStoreInsts(Ice::CfgNode* node, std::vector<LoadStoreInst>* insts)
-	{
-		node->Ice::CfgNode::setExternalData(insts);
-	}
-
-	bool Optimizer::hasLoadStoreInsts(Ice::CfgNode* node) const
-	{
-		return node->Ice::CfgNode::getExternalData() != nullptr;
-	}
-
 	bool Optimizer::Uses::areOnlyLoadStore() const
 	{
 		return size() == (loads.size() + stores.size());
@@ -826,7 +691,7 @@ namespace
 	}
 }
 
-namespace rr
+namespace sw
 {
 	void optimize(Ice::Cfg *function)
 	{
