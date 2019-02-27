@@ -126,7 +126,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(ProjectDir)/..;$(ProjectDir)/../..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GLAPI=;GL_GLEXT_PROTOTYPES;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GL_GLEXT_PROTOTYPES;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -136,8 +136,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <BrowseInformation>true</BrowseInformation>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <TreatSpecificWarningsAsErrors>4018;5038;4838</TreatSpecificWarningsAsErrors>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
+      <TreatSpecificWarningsAsErrors>4018;5038</TreatSpecificWarningsAsErrors>
     </ClCompile>
     <Link>
       <AdditionalDependencies>dxguid.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -147,17 +146,17 @@
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command>mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
+      <Command>mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(ProjectDir)/..;$(ProjectDir)/../..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GLAPI=;GL_GLEXT_PROTOTYPES;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GL_GLEXT_PROTOTYPES;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader>
@@ -166,8 +165,7 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <BrowseInformation>true</BrowseInformation>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <TreatSpecificWarningsAsErrors>4018;5038;4838</TreatSpecificWarningsAsErrors>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
+      <TreatSpecificWarningsAsErrors>4018;5038</TreatSpecificWarningsAsErrors>
     </ClCompile>
     <Link>
       <AdditionalDependencies>dxguid.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -176,10 +174,10 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <SubSystem>Windows</SubSystem>
     </Link>
     <PostBuildEvent>
-      <Command>mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
+      <Command>mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
     </PostBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64</PreprocessorDefinitions>
@@ -190,7 +188,7 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <Optimization>Full</Optimization>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>$(ProjectDir)/..;$(ProjectDir)/../..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GLAPI=;GL_GLEXT_PROTOTYPES;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GL_GLEXT_PROTOTYPES;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
@@ -203,8 +201,7 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <TreatSpecificWarningsAsErrors>4018;5038;4838</TreatSpecificWarningsAsErrors>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
+      <TreatSpecificWarningsAsErrors>4018;5038</TreatSpecificWarningsAsErrors>
     </ClCompile>
     <Link>
       <AdditionalDependencies>dxguid.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -217,10 +214,10 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command>mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
+      <Command>mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -228,7 +225,7 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <Optimization>Full</Optimization>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>$(ProjectDir)/..;$(ProjectDir)/../..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GLAPI=;GL_GLEXT_PROTOTYPES;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GL_GLEXT_PROTOTYPES;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
@@ -241,8 +238,7 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <TreatSpecificWarningsAsErrors>4018;5038;4838</TreatSpecificWarningsAsErrors>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
+      <TreatSpecificWarningsAsErrors>4018;5038</TreatSpecificWarningsAsErrors>
     </ClCompile>
     <Link>
       <AdditionalDependencies>dxguid.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -254,10 +250,10 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
     </Link>
     <PostBuildEvent>
-      <Command>mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
+      <Command>mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
     </PostBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64</PreprocessorDefinitions>
@@ -268,7 +264,7 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <Optimization>Full</Optimization>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>$(ProjectDir)/..; $(ProjectDir)/../..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GLAPI=;GL_GLEXT_PROTOTYPES;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GL_GLEXT_PROTOTYPES;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
@@ -279,8 +275,7 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <IntrinsicFunctions>false</IntrinsicFunctions>
-      <TreatSpecificWarningsAsErrors>4018;5038;4838</TreatSpecificWarningsAsErrors>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
+      <TreatSpecificWarningsAsErrors>4018;5038</TreatSpecificWarningsAsErrors>
     </ClCompile>
     <Link>
       <AdditionalDependencies>dxguid.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -293,10 +288,10 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command>mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
+      <Command>mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
@@ -304,7 +299,7 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <Optimization>Full</Optimization>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>$(ProjectDir)/..; $(ProjectDir)/../..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GLAPI=;GL_GLEXT_PROTOTYPES;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;EGLAPI=;GL_API=;GL_APICALL=;GL_GLEXT_PROTOTYPES;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;NOMINMAX;_SECURE_SCL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
@@ -315,8 +310,7 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <IntrinsicFunctions>false</IntrinsicFunctions>
-      <TreatSpecificWarningsAsErrors>4018;5038;4838</TreatSpecificWarningsAsErrors>
-      <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
+      <TreatSpecificWarningsAsErrors>4018;5038</TreatSpecificWarningsAsErrors>
     </ClCompile>
     <Link>
       <AdditionalDependencies>dxguid.lib;WS2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -328,17 +322,16 @@ copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\t
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
     </Link>
     <PostBuildEvent>
-      <Command>mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\"
-mkdir "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\"
-copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)out\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
+      <Command>mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\"
+mkdir "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\"
+copy "$(OutDir)libGLES_CM.dll" "$(SolutionDir)lib\$(Configuration)_$(Platform)\translator\libGLES_CM_translator.dll"</Command>
     </PostBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Common\SharedLibrary.cpp" />
     <ClCompile Include="..\common\Image.cpp" />
     <ClCompile Include="..\common\MatrixStack.cpp" />
     <ClCompile Include="..\common\Object.cpp" />

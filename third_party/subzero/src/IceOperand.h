@@ -106,9 +106,6 @@ public:
     return 0;
   }
 
-  inline void* getExternalData() const { return externalData; }
-  inline void setExternalData(void* data) { externalData = data; }
-
 protected:
   Operand(OperandKind Kind, Type Ty) : Ty(Ty), Kind(Kind) {
     // It is undefined behavior to have a larger value in the enum
@@ -120,11 +117,6 @@ protected:
   /// Vars and NumVars are initialized by the derived class.
   SizeT NumVars = 0;
   Variable **Vars = nullptr;
-
-  /// External data can be set by an optimizer to compute and retain any
-  /// information related to the current operand. All the memory used to
-  /// store this information must be managed by the optimizer.
-  void* externalData = nullptr;
 };
 
 template <class StreamType>
@@ -862,9 +854,6 @@ public:
 
   SizeT hashValue() const override { return std::hash<SizeT>()(getIndex()); }
 
-  inline void* getExternalData() const { return externalData; }
-  inline void setExternalData(void* data) { externalData = data; }
-
 protected:
   Variable(const Cfg *Func, OperandKind K, Type Ty, SizeT Index)
       : Operand(K, Ty), Number(Index),
@@ -906,10 +895,6 @@ protected:
   /// This Variable may be "linked" to another Variable, such that if neither
   /// Variable gets a register, they are guaranteed to share a stack location.
   Variable *LinkedTo = nullptr;
-  /// External data can be set by an optimizer to compute and retain any
-  /// information related to the current variable. All the memory used to
-  /// store this information must be managed by the optimizer.
-  void* externalData = nullptr;
 };
 
 // Variable64On32 represents a 64-bit variable on a 32-bit architecture. In

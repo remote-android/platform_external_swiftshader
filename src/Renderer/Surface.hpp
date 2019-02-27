@@ -321,7 +321,6 @@ namespace sw
 		inline int getStencilSliceB() const;
 
 		void sync();                      // Wait for lock(s) to be released.
-		virtual bool requiresSync() const { return false; }
 		inline bool isUnlocked() const;   // Only reliable after sync().
 
 		inline int getSamples() const;
@@ -363,7 +362,7 @@ namespace sw
 		static int pitchP(int width, int border, Format format, bool target);
 		static int sliceB(int width, int height, int border, Format format, bool target);
 		static int sliceP(int width, int height, int border, Format format, bool target);
-		static size_t size(int width, int height, int depth, int border, int samples, Format format);
+		static unsigned int size(int width, int height, int depth, int border, int samples, Format format);   // FIXME: slice * depth
 
 		static bool isStencil(Format format);
 		static bool isDepth(Format format);
@@ -486,7 +485,7 @@ namespace sw
 		static void *allocateBuffer(int width, int height, int depth, int border, int samples, Format format);
 		static void memfill4(void *buffer, int pattern, int bytes);
 
-		bool identicalBuffers() const;
+		bool identicalFormats() const;
 		Format selectInternalFormat(Format format) const;
 
 		void resolve();

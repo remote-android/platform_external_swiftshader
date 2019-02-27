@@ -33,63 +33,12 @@ namespace gl { class Surface; }
 
 namespace es2
 {
-class Sampler;
-
 enum
 {
 	IMPLEMENTATION_MAX_TEXTURE_LEVELS = sw::MIPMAP_LEVELS,
 	IMPLEMENTATION_MAX_TEXTURE_SIZE = 1 << (IMPLEMENTATION_MAX_TEXTURE_LEVELS - 1),
-	IMPLEMENTATION_MAX_3D_TEXTURE_SIZE = IMPLEMENTATION_MAX_TEXTURE_SIZE,
-	IMPLEMENTATION_MAX_CUBE_MAP_TEXTURE_SIZE = IMPLEMENTATION_MAX_TEXTURE_SIZE,
-	IMPLEMENTATION_MAX_ARRAY_TEXTURE_LAYERS = IMPLEMENTATION_MAX_TEXTURE_SIZE,
+	IMPLEMENTATION_MAX_CUBE_MAP_TEXTURE_SIZE = 1 << (IMPLEMENTATION_MAX_TEXTURE_LEVELS - 1),
 	IMPLEMENTATION_MAX_RENDERBUFFER_SIZE = sw::OUTLINE_RESOLUTION,
-};
-
-class ImageLevels
-{
-public:
-	inline const egl::Image* operator[](size_t index) const
-	{
-		return (index < IMPLEMENTATION_MAX_TEXTURE_LEVELS) ? image[index] : nullptr;
-	}
-
-	inline egl::Image*& operator[](size_t index)
-	{
-		if(index < IMPLEMENTATION_MAX_TEXTURE_LEVELS)
-		{
-			return image[index];
-		}
-
-		return getNullImage();
-	}
-
-	inline void release()
-	{
-		for(int i = 0; i < IMPLEMENTATION_MAX_TEXTURE_LEVELS; i++)
-		{
-			if(image[i])
-			{
-				image[i]->release();
-				image[i] = nullptr;
-			}
-		}
-	}
-
-	inline void unbind(const egl::Texture* texture)
-	{
-		for(int i = 0; i < IMPLEMENTATION_MAX_TEXTURE_LEVELS; i++)
-		{
-			if(image[i])
-			{
-				image[i]->unbind(texture);
-				image[i] = nullptr;
-			}
-		}
-	}
-
-private:
-	egl::Image *image[IMPLEMENTATION_MAX_TEXTURE_LEVELS] = {};
-    static egl::Image*& getNullImage();
 };
 
 class Texture : public egl::Texture
@@ -146,9 +95,8 @@ public:
 	virtual GLsizei getDepth(GLenum target, GLint level) const;
 	virtual GLint getFormat(GLenum target, GLint level) const = 0;
 	virtual int getTopLevel() const = 0;
-	virtual bool requiresSync() const = 0;
 
-	virtual bool isSamplerComplete(Sampler *sampler) const = 0;
+	virtual bool isSamplerComplete() const = 0;
 	virtual bool isCompressed(GLenum target, GLint level) const = 0;
 	virtual bool isDepth(GLenum target, GLint level) const = 0;
 
@@ -170,7 +118,7 @@ protected:
 
 	bool copy(egl::Image *source, const sw::SliceRect &sourceRect, GLint xoffset, GLint yoffset, GLint zoffset, egl::Image *dest);
 
-	bool isMipmapFiltered(Sampler *sampler) const;
+	bool isMipmapFiltered() const;
 
 	GLenum mMinFilter;
 	GLenum mMagFilter;
@@ -209,7 +157,6 @@ public:
 	GLsizei getHeight(GLenum target, GLint level) const override;
 	GLint getFormat(GLenum target, GLint level) const override;
 	int getTopLevel() const override;
-	bool requiresSync() const override;
 
 	void setImage(GLint level, GLsizei width, GLsizei height, GLint internalformat, GLenum format, GLenum type, const gl::PixelStorageModes &unpackParameters, const void *pixels);
 	void setCompressedImage(GLint level, GLenum format, GLsizei width, GLsizei height, GLsizei imageSize, const void *pixels);
@@ -220,7 +167,7 @@ public:
 
 	void setSharedImage(egl::Image *image);
 
-	bool isSamplerComplete(Sampler *sampler) const override;
+	bool isSamplerComplete() const override;
 	bool isCompressed(GLenum target, GLint level) const override;
 	bool isDepth(GLenum target, GLint level) const override;
 	void bindTexImage(gl::Surface *surface);
@@ -239,7 +186,7 @@ protected:
 
 	bool isMipmapComplete() const;
 
-	ImageLevels image;
+	egl::Image *image[IMPLEMENTATION_MAX_TEXTURE_LEVELS];
 
 	gl::Surface *mSurface;
 
@@ -277,7 +224,6 @@ public:
 	GLsizei getHeight(GLenum target, GLint level) const override;
 	GLint getFormat(GLenum target, GLint level) const override;
 	int getTopLevel() const override;
-	bool requiresSync() const override;
 
 	void setImage(GLenum target, GLint level, GLsizei width, GLsizei height, GLint internalformat, GLenum format, GLenum type, const gl::PixelStorageModes &unpackParameters, const void *pixels);
 	void setCompressedImage(GLenum target, GLint level, GLenum format, GLsizei width, GLsizei height, GLsizei imageSize, const void *pixels);
@@ -287,7 +233,7 @@ public:
 	void copyImage(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, Renderbuffer *source);
 	void copySubImage(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height, Renderbuffer *source) override;
 
-	bool isSamplerComplete(Sampler *sampler) const override;
+	bool isSamplerComplete() const override;
 	bool isCompressed(GLenum target, GLint level) const override;
 	bool isDepth(GLenum target, GLint level) const override;
 	void releaseTexImage() override;
@@ -312,7 +258,7 @@ private:
 	// face is one of the GL_TEXTURE_CUBE_MAP_* enumerants. Returns nullptr on failure.
 	egl::Image *getImage(GLenum face, unsigned int level);
 
-	ImageLevels image[6];
+	egl::Image *image[6][IMPLEMENTATION_MAX_TEXTURE_LEVELS];
 
 	// A specific internal reference count is kept for colorbuffer proxy references,
 	// because, as the renderbuffer acting as proxy will maintain a binding pointer
@@ -339,18 +285,17 @@ public:
 	GLsizei getDepth(GLenum target, GLint level) const override;
 	GLint getFormat(GLenum target, GLint level) const override;
 	int getTopLevel() const override;
-	bool requiresSync() const override;
 
 	void setImage(GLint level, GLsizei width, GLsizei height, GLsizei depth, GLint internalformat, GLenum format, GLenum type, const gl::PixelStorageModes &unpackParameters, const void *pixels);
 	void setCompressedImage(GLint level, GLenum format, GLsizei width, GLsizei height, GLsizei depth, GLsizei imageSize, const void *pixels);
 	void subImage(GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const gl::PixelStorageModes &unpackParameters, const void *pixels);
 	void subImageCompressed(GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *pixels);
 	void copyImage(GLint level, GLenum internalformat, GLint x, GLint y, GLint z, GLsizei width, GLsizei height, GLsizei depth, Renderbuffer *source);
-	void copySubImage(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height, Renderbuffer *source) override;
+	void copySubImage(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height, Renderbuffer *source);
 
 	void setSharedImage(egl::Image *image);
 
-	bool isSamplerComplete(Sampler *sampler) const override;
+	bool isSamplerComplete() const override;
 	bool isCompressed(GLenum target, GLint level) const override;
 	bool isDepth(GLenum target, GLint level) const override;
 	void releaseTexImage() override;
@@ -368,7 +313,7 @@ protected:
 
 	bool isMipmapComplete() const;
 
-	ImageLevels image;
+	egl::Image *image[IMPLEMENTATION_MAX_TEXTURE_LEVELS];
 
 	gl::Surface *mSurface;
 

@@ -23,7 +23,7 @@
 #include "ParseHelper.h"
 
 #ifdef TRACE_ENABLED
-namespace sh {
+extern "C" {
 void Trace(const char *format, ...) {
 	if (!format) return;
 
@@ -39,6 +39,6 @@ void Trace(const char *format, ...) {
 		parseContext->trace(buf);
 	}
 }
-}  // namespace sh
+}  // extern "C"
 #endif  // TRACE_ENABLED
 

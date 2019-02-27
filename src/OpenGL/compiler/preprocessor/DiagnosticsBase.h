@@ -30,7 +30,6 @@ public:
 	// Severity is used to classify info log messages.
 	enum Severity
 	{
-		PP_INFO,
 		PP_WARNING,
 		PP_ERROR
 	};

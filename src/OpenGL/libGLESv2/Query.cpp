@@ -32,7 +32,7 @@ Query::Query(GLuint name, GLenum type) : NamedObject(name)
 
 Query::~Query()
 {
-	mQuery->release();
+	delete mQuery;
 }
 
 void Query::begin()
@@ -140,7 +140,7 @@ GLboolean Query::testQuery()
 {
 	if(mQuery != nullptr && mStatus != GL_TRUE)
 	{
-		if(!mQuery->building && mQuery->isReady())
+		if(!mQuery->building && mQuery->reference == 0)
 		{
 			unsigned int resultSum = mQuery->data;
 			mStatus = GL_TRUE;

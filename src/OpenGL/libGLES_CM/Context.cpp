@@ -1781,15 +1781,14 @@ bool Context::applyRenderTarget()
 void Context::applyState(GLenum drawMode)
 {
 	Framebuffer *framebuffer = getFramebuffer();
-	bool frontFaceCCW = (mState.frontFace == GL_CCW);
 
 	if(mState.cullFaceEnabled)
 	{
-		device->setCullMode(es2sw::ConvertCullMode(mState.cullMode, mState.frontFace), frontFaceCCW);
+		device->setCullMode(es2sw::ConvertCullMode(mState.cullMode, mState.frontFace));
 	}
 	else
 	{
-		device->setCullMode(sw::CULL_NONE, frontFaceCCW);
+		device->setCullMode(sw::CULL_NONE);
 	}
 
 	if(mDepthStateDirty)
