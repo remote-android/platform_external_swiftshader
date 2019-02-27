@@ -127,9 +127,6 @@ public:
   }
   CfgNode *shortCircuit();
 
-  inline void* getExternalData() const { return externalData; }
-  inline void setExternalData(void* data) { externalData = data; }
-
 private:
   CfgNode(Cfg *Func, SizeT Number)
       : Func(Func), Number(Number), NumberOrig(Number),
@@ -148,11 +145,6 @@ private:
   NodeList OutEdges;                 /// in no particular order
   PhiList Phis;                      /// unordered set of phi instructions
   InstList Insts;                    /// ordered list of non-phi instructions
-
-  /// External data can be set by an optimizer to compute and retain any
-  /// information related to the current node. All the memory used to
-  /// store this information must be managed by the optimizer.
-  void* externalData = nullptr;
 };
 
 } // end of namespace Ice

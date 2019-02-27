@@ -477,8 +477,8 @@ class TIntermBinary : public TIntermOperator {
 public:
 	TIntermBinary(TOperator o) : TIntermOperator(o) {}
 
-	TIntermBinary* getAsBinaryNode() override { return this; }
-	void traverse(TIntermTraverser*) override;
+	virtual TIntermBinary* getAsBinaryNode() { return this; }
+	virtual void traverse(TIntermTraverser*);
 
 	void setType(const TType &t) override
 	{
@@ -519,8 +519,8 @@ public:
 		}
 	}
 
-	void traverse(TIntermTraverser*) override;
-	TIntermUnary* getAsUnaryNode() override { return this; }
+	virtual void traverse(TIntermTraverser*);
+	virtual TIntermUnary* getAsUnaryNode() { return this; }
 
 	void setOperand(TIntermTyped* o) { operand = o; }
 	TIntermTyped* getOperand() { return operand; }
@@ -542,8 +542,8 @@ public:
 	TIntermAggregate(TOperator o) : TIntermOperator(o), userDefined(false) { endLine = { 0, 0, 0, 0 }; }
 	~TIntermAggregate() { }
 
-	TIntermAggregate* getAsAggregate() override { return this; }
-	void traverse(TIntermTraverser*) override;
+	virtual TIntermAggregate* getAsAggregate() { return this; }
+	virtual void traverse(TIntermTraverser*);
 
 	TIntermSequence& getSequence() { return sequence; }
 
