@@ -48,11 +48,8 @@ public:
 
 	virtual GLsizei getWidth() const = 0;
 	virtual GLsizei getHeight() const = 0;
-	virtual GLint getLevel() const { return 0; }
 	virtual GLint getFormat() const = 0;
 	virtual GLsizei getSamples() const = 0;
-
-	virtual void setLevel(GLint) {}
 
 	GLuint getRedSize() const;
 	GLuint getGreenSize() const;
@@ -65,28 +62,24 @@ public:
 class RenderbufferTexture2D : public RenderbufferInterface
 {
 public:
-	RenderbufferTexture2D(Texture2D *texture, GLint level);
+	RenderbufferTexture2D(Texture2D *texture);
 
-	~RenderbufferTexture2D() override;
+	virtual ~RenderbufferTexture2D();
 
-	void addProxyRef(const Renderbuffer *proxy) override;
-    void releaseProxy(const Renderbuffer *proxy) override;
+	virtual void addProxyRef(const Renderbuffer *proxy);
+    virtual void releaseProxy(const Renderbuffer *proxy);
 
-	egl::Image *getRenderTarget() override;
-    egl::Image *createSharedImage() override;
-    bool isShared() const override;
+	virtual egl::Image *getRenderTarget();
+    virtual egl::Image *createSharedImage();
+    virtual bool isShared() const;
 
-	GLsizei getWidth() const override;
-	GLsizei getHeight() const override;
-	GLint getLevel() const override { return mLevel; }
-	GLint getFormat() const override;
-	GLsizei getSamples() const override;
-
-	void setLevel(GLint level) override { mLevel = level; }
+	virtual GLsizei getWidth() const;
+	virtual GLsizei getHeight() const;
+	virtual GLint getFormat() const;
+	virtual GLsizei getSamples() const;
 
 private:
 	gl::BindingPointer<Texture2D> mTexture2D;
-	GLint mLevel;
 };
 
 // A class derived from RenderbufferStorage is created whenever glRenderbufferStorage
@@ -97,16 +90,16 @@ class RenderbufferStorage : public RenderbufferInterface
 public:
 	RenderbufferStorage();
 
-	~RenderbufferStorage() override = 0;
+	virtual ~RenderbufferStorage() = 0;
 
-	egl::Image *getRenderTarget() override = 0;
-    egl::Image *createSharedImage() override = 0;
-    bool isShared() const override = 0;
+	virtual egl::Image *getRenderTarget() = 0;
+    virtual egl::Image *createSharedImage() = 0;
+    virtual bool isShared() const = 0;
 
-	GLsizei getWidth() const override;
-	GLsizei getHeight() const override;
-	GLint getFormat() const override;
-	GLsizei getSamples() const override;
+	virtual GLsizei getWidth() const;
+	virtual GLsizei getHeight() const;
+	virtual GLint getFormat() const;
+	virtual GLsizei getSamples() const;
 
 protected:
 	GLsizei mWidth;
@@ -138,7 +131,6 @@ public:
 
 	GLsizei getWidth() const;
 	GLsizei getHeight() const;
-	GLint getLevel() const;
 	GLenum getFormat() const;
 	GLuint getRedSize() const;
 	GLuint getGreenSize() const;
@@ -148,7 +140,6 @@ public:
 	GLuint getStencilSize() const;
 	GLsizei getSamples() const;
 
-	void setLevel(GLint level);
 	void setStorage(RenderbufferStorage *newStorage);
 
 private:
@@ -161,11 +152,11 @@ public:
 	explicit Colorbuffer(egl::Image *renderTarget);
 	Colorbuffer(GLsizei width, GLsizei height, GLenum internalformat, GLsizei samples);
 
-	~Colorbuffer() override;
+	virtual ~Colorbuffer();
 
-	egl::Image *getRenderTarget() override;
-    egl::Image *createSharedImage() override;
-    bool isShared() const override;
+	virtual egl::Image *getRenderTarget();
+    virtual egl::Image *createSharedImage();
+    virtual bool isShared() const;
 
 private:
 	egl::Image *mRenderTarget;
@@ -179,9 +170,9 @@ public:
 
 	~DepthStencilbuffer();
 
-	egl::Image *getRenderTarget() override;
-    egl::Image *createSharedImage() override;
-    bool isShared() const override;
+	virtual egl::Image *getRenderTarget();
+    virtual egl::Image *createSharedImage();
+    virtual bool isShared() const;
 
 protected:
 	egl::Image *mDepthStencil;
@@ -193,7 +184,7 @@ public:
 	explicit Depthbuffer(egl::Image *depthStencil);
 	Depthbuffer(GLsizei width, GLsizei height, GLenum internalformat, GLsizei samples);
 
-	~Depthbuffer() override;
+	virtual ~Depthbuffer();
 };
 
 class Stencilbuffer : public DepthStencilbuffer
@@ -202,7 +193,7 @@ public:
 	explicit Stencilbuffer(egl::Image *depthStencil);
 	Stencilbuffer(GLsizei width, GLsizei height, GLsizei samples);
 
-	~Stencilbuffer() override;
+	virtual ~Stencilbuffer();
 };
 }
 

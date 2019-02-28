@@ -59,11 +59,7 @@ namespace sw
 	int64_t Timer::ticks()
 	{
 		#if defined(_WIN32)
-			#if defined(_M_ARM64)
-				return _ReadStatusReg(ARM64_PMCCNTR_EL0);
-			#else
-				return __rdtsc();
-			#endif
+			return __rdtsc();
 		#elif defined(__i386__) || defined(__x86_64__)
 			int64_t tsc;
 			__asm volatile("rdtsc": "=A" (tsc));

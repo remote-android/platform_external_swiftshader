@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef rr_LLVMRoutineManager_hpp
-#define rr_LLVMRoutineManager_hpp
+#ifndef sw_LLVMRoutineManager_hpp
+#define sw_LLVMRoutineManager_hpp
 
-#if REACTOR_LLVM_VERSION < 7
-
-#include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/GlobalValue.h"
+#include "llvm/ExecutionEngine/JITMemoryManager.h"
 
-namespace rr
+namespace sw
 {
 	class LLVMRoutine;
 
@@ -56,6 +54,4 @@ namespace rr
 	};
 }
 
-#endif  // REACTOR_LLVM_VERSION < 7
-
-#endif   // rr_LLVMRoutineManager_hpp
+#endif   // sw_LLVMRoutineManager_hpp
