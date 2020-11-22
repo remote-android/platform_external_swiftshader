@@ -668,42 +668,41 @@ cc_defaults {
         "external/swiftshader/include"
     ],
 }
-
-cc_library_shared {
-    name: "vulkan.pastel",
-
-    static_libs: [
-        "libswiftshadervk_llvm_debug",
-        "libLLVM7_swiftshader",
-    ],
-
-    host_supported: false,
-
-    defaults: [
-        "libvk_swiftshader_common_defaults",
-        "libvk_swiftshader_defaults"
-    ],
-}
-
-cc_library_shared {
-    name: "vulkan.pastel.debug",
-
-    static_libs: [
-        "libswiftshadervk_llvm_debug",
-        "libLLVM7_swiftshader",
-    ],
-
-    host_supported: false,
-
-    cflags: [
-        "-UNDEBUG",
-        "-g",
-        "-O0",
-        "-DDEFAULT_THREAD_COUNT=1",
-    ],
-
-    defaults: [
-        "libvk_swiftshader_common_defaults",
-        "libvk_swiftshader_defaults",
-    ],
-}
+//cc_library_shared {
+//    name: "vulkan.pastel",
+//
+//    static_libs: [
+//        "libswiftshadervk_llvm_debug",
+//        "libLLVM7_swiftshader",
+//    ],
+//
+//    host_supported: false,
+//
+//    defaults: [
+//        "libvk_swiftshader_common_defaults",
+//        "libvk_swiftshader_defaults"
+//    ],
+//}
+//
+//cc_library_shared {
+//    name: "vulkan.pastel.debug",
+//
+//    static_libs: [
+//        "libswiftshadervk_llvm_debug",
+//        "libLLVM7_swiftshader",
+//    ],
+//
+//    host_supported: false,
+//
+//    cflags: [
+//        "-UNDEBUG",
+//        "-g",
+//        "-O0",
+//        "-DDEFAULT_THREAD_COUNT=1",
+//    ],
+//
+//    defaults: [
+//        "libvk_swiftshader_common_defaults",
+//        "libvk_swiftshader_defaults",
+//    ],
+//}
